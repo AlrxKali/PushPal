@@ -21,8 +21,10 @@ class MyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final goRouter = ref.watch(goRouterProvider); // Watch the goRouterProvider
+
     return MaterialApp.router(
-      routerConfig: appRouter, // Use the router configuration
+      routerConfig: goRouter, // Use the router from the provider
       title: 'PushPal Fitness Buddy',
       theme: appThemeData, // Apply the app theme
       debugShowCheckedModeBanner: false,

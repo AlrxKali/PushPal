@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-// import 'package:push_pal/src/features/auth/application/auth_service.dart'; // Will be used later for actual login
+import 'package:push_pal/src/features/auth/application/auth_service.dart'; // Uncommented and used
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -24,27 +24,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _login() async {
-    if (_formKey.currentState!.validate()) {
+    if (_formKey.currentState?.validate() ?? false) {
       setState(() => _isLoading = true);
-      // TODO: Call auth service to log in
-      // final authService = ref.read(authServiceProvider);
-      // try {
-      //   await authService.signInWithEmailAndPassword(
-      //     _emailController.text.trim(),
-      //     _passwordController.text.trim(),
-      //   );
-      //   // Navigation will be handled by the auth state listener in splash or router
-      // } catch (e) {
-      //   // Show error SnackBar
-      //   if (mounted) {
-      //     ScaffoldMessenger.of(context).showSnackBar(
-      //       SnackBar(content: Text(e.toString())), // Or a more user-friendly message
-      //     );
-      //   }
-      // }
-      // Simulate network call for now
-      await Future.delayed(const Duration(seconds: 2)); 
-      print('Email: ${_emailController.text}, Password: ${_passwordController.text}');
+      try {
+        final authService = ref.read(authServiceProvider);
+        print('[UI - LoginScreen] Calling authService.signInWithEmailAndPassword'); // DEBUG PRINT
+        await authService.signInWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
+        print('[UI - LoginScreen] signInWithEmailAndPassword call completed (no exception caught here)'); // DEBUG PRINT
+        // Navigation is handled by authStateChangesProvider via SplashScreen logic or router redirects
+        // No explicit navigation here on success is needed if setup correctly.
+      } on AuthServiceException catch (e) {
+        print('[UI - LoginScreen] Caught AuthServiceException: ${e.message}'); // DEBUG PRINT
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.message)),
+          );
+        }
+      } catch (e) {
+        print('[UI - LoginScreen] Caught Generic Exception: ${e.toString()}, Type: ${e.runtimeType}'); // DEBUG PRINT
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('An unexpected error occurred. Please try again.')),
+          );
+        }
+      }
       if (mounted) {
         setState(() => _isLoading = false);
       }

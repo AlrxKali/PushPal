@@ -2,9 +2,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // Import Riverpod
-import 'package:go_router/go_router.dart';
-import 'package:push_pal/src/features/auth/application/auth_service.dart'; // Import AuthService for provider
+// import 'package:go_router/go_router.dart'; // No longer directly used for navigation here
+// import 'package:push_pal/src/features/auth/application/auth_service.dart'; // Not directly used for navigation logic here
 import 'package:push_pal/src/theme/app_theme.dart'; // To access colors
+import 'package:push_pal/src/routing/app_router.dart'; // Import for splashMinTimeElapsedProvider
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -17,6 +18,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
+  Timer? _timer;
 
   @override
   void initState() {
@@ -37,22 +39,31 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
 
     _animationController.forward();
 
-    // Navigate after a delay, checking auth state
-    Future.delayed(const Duration(milliseconds: 2500), () { // Reduced delay slightly
-      if (mounted) { 
-        final user = ref.read(authStateChangesProvider).valueOrNull;
-        if (user != null) {
-          context.go('/'); // User is logged in, go to Home
-        } else {
-          context.go('/login'); // User is not logged in, go to Login
-        }
+    // Start a timer to ensure splash screen shows for a minimum duration
+    _timer = Timer(const Duration(milliseconds: 2500), () {
+      if (mounted) {
+        ref.read(splashMinTimeElapsedProvider.notifier).state = true;
+        // Note: GoRouter's redirect logic will handle navigation now based on this flag and auth state.
       }
     });
+
+    // REMOVED: Timed navigation. GoRouter's redirect logic now handles this.
+    // Future.delayed(const Duration(milliseconds: 2500), () {
+    //   if (mounted) { 
+    //     final user = ref.read(authStateChangesProvider).valueOrNull;
+    //     if (user != null) {
+    //       context.go('/'); 
+    //     } else {
+    //       context.go('/login'); 
+    //     }
+    //   }
+    // });
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    _timer?.cancel(); // Cancel the timer if the widget is disposed
     super.dispose();
   }
 
