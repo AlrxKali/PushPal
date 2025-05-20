@@ -1,17 +1,19 @@
 // This file will contain the SplashScreen widget 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // Import Riverpod
 import 'package:go_router/go_router.dart';
+import 'package:push_pal/src/features/auth/application/auth_service.dart'; // Import AuthService for provider
 import 'package:push_pal/src/theme/app_theme.dart'; // To access colors
 
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
@@ -35,11 +37,15 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     _animationController.forward();
 
-    // Navigate after a delay
-    Timer(const Duration(seconds: 3), () {
-      if (mounted) { // Check if the widget is still in the tree
-        // In the future, this will check auth state
-        context.go('/'); // Navigate to HomeScreen (or login/home based on auth state later)
+    // Navigate after a delay, checking auth state
+    Future.delayed(const Duration(milliseconds: 2500), () { // Reduced delay slightly
+      if (mounted) { 
+        final user = ref.read(authStateChangesProvider).valueOrNull;
+        if (user != null) {
+          context.go('/'); // User is logged in, go to Home
+        } else {
+          context.go('/login'); // User is not logged in, go to Login
+        }
       }
     });
   }
