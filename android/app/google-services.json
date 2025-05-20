@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "98010296393",
+    "project_id": "lumina-pushpal",
+    "storage_bucket": "lumina-pushpal.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:98010296393:android:6aef7e013d60a67b14cf98",
+        "android_client_info": {
+          "package_name": "com.example.push_pal"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBkOC9PnVzQy38cB0kjUn0E0501vR2Blow"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
