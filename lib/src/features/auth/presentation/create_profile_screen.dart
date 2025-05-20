@@ -7,12 +7,14 @@ import 'package:intl/intl.dart'; // For date formatting
 import 'package:push_pal/src/features/auth/application/auth_service.dart';
 import 'package:push_pal/src/features/auth/application/user_profile_service.dart';
 import 'package:push_pal/src/features/auth/domain/user_profile.dart';
+import 'package:push_pal/src/widgets/step_progress_indicator.dart'; // Import the progress indicator
 
 class CreateProfileScreen extends ConsumerStatefulWidget {
   const CreateProfileScreen({super.key});
 
   @override
-  ConsumerState<CreateProfileScreen> createState() => _CreateProfileScreenState();
+  ConsumerState<CreateProfileScreen> createState() =>
+      _CreateProfileScreenState();
 }
 
 class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
@@ -26,15 +28,32 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
   bool _isLoading = false;
 
   final List<String> _fitnessGoalOptions = [
-    "Weight Loss", "Muscle Gain", "Endurance", "General Fitness", 
-    "Improve Flexibility", "Stress Relief"
+    "Weight Loss",
+    "Muscle Gain",
+    "Endurance",
+    "General Fitness",
+    "Improve Flexibility",
+    "Stress Relief",
   ];
   final List<String> _workoutTypeOptions = [
-    "Weightlifting", "Running", "Yoga", "Cycling", "HIIT", 
-    "CrossFit", "Swimming", "Dancing", "Sports", "Hiking", "Walking"
+    "Weightlifting",
+    "Running",
+    "Yoga",
+    "Cycling",
+    "HIIT",
+    "CrossFit",
+    "Swimming",
+    "Dancing",
+    "Sports",
+    "Hiking",
+    "Walking",
   ];
   final List<String> _genderOptions = [
-    "Male", "Female", "Non-binary", "Other", "Prefer not to say"
+    "Male",
+    "Female",
+    "Non-binary",
+    "Other",
+    "Prefer not to say",
   ];
 
   @override
@@ -47,9 +66,14 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
     final now = DateTime.now();
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDateOfBirth ?? DateTime(now.year - 18, now.month, now.day),
+      initialDate:
+          _selectedDateOfBirth ?? DateTime(now.year - 18, now.month, now.day),
       firstDate: DateTime(1920),
-      lastDate: DateTime(now.year - 13, now.month, now.day), // Must be at least 13
+      lastDate: DateTime(
+        now.year - 13,
+        now.month,
+        now.day,
+      ), // Must be at least 13
       helpText: 'Select your date of birth',
     );
     if (picked != null && picked != _selectedDateOfBirth) {
@@ -61,7 +85,7 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
 
   Future<void> _saveProfile() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    
+
     if (_selectedFitnessGoal == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select your fitness goal.')),
@@ -70,12 +94,14 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
     }
     if (_selectedWorkoutTypes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select at least one preferred workout type.')),
+        const SnackBar(
+          content: Text('Please select at least one preferred workout type.'),
+        ),
       );
       return;
     }
     if (_selectedDateOfBirth == null) {
-       ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select your date of birth.')),
       );
       return;
@@ -96,17 +122,22 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
       uid: currentUser.uid,
       email: currentUser.email,
       displayName: currentUser.displayName,
-      profileSetupComplete: true,
+      profileSetupComplete: false,
       locationZipCode: _zipCodeController.text.trim(),
       fitnessGoal: _selectedFitnessGoal,
       preferredWorkoutTypes: _selectedWorkoutTypes,
-      dateOfBirth: _selectedDateOfBirth != null ? Timestamp.fromDate(_selectedDateOfBirth!) : null,
+      dateOfBirth:
+          _selectedDateOfBirth != null
+              ? Timestamp.fromDate(_selectedDateOfBirth!)
+              : null,
       gender: _selectedGender,
     );
 
     try {
       await ref.read(userProfileServiceProvider).setUserProfile(userProfile);
-      if (mounted) context.go('/');
+      if (mounted) {
+        context.go('/set-availability');
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -127,8 +158,19 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
   }) {
     return DropdownButtonFormField<T>(
       value: value,
-      decoration: InputDecoration(labelText: labelText, border: const OutlineInputBorder()),
-      items: items.map((item) => DropdownMenuItem<T>(value: item, child: Text(item.toString()))).toList(),
+      decoration: InputDecoration(
+        labelText: labelText,
+        border: const OutlineInputBorder(),
+      ),
+      items:
+          items
+              .map(
+                (item) => DropdownMenuItem<T>(
+                  value: item,
+                  child: Text(item.toString()),
+                ),
+              )
+              .toList(),
       onChanged: onChanged,
       validator: validator,
     );
@@ -138,29 +180,35 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Preferred Workout Types (Select at least one)', style: Theme.of(context).textTheme.titleMedium),
+        Text(
+          'Preferred Workout Types (Select at least one)',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8.0,
           runSpacing: 4.0,
-          children: _workoutTypeOptions.map((type) {
-            final isSelected = _selectedWorkoutTypes.contains(type);
-            return FilterChip(
-              label: Text(type),
-              selected: isSelected,
-              onSelected: (selected) {
-                setState(() {
-                  if (selected) {
-                    _selectedWorkoutTypes.add(type);
-                  } else {
-                    _selectedWorkoutTypes.remove(type);
-                  }
-                });
-              },
-              selectedColor: Theme.of(context).primaryColor.withOpacity(0.3),
-              checkmarkColor: Theme.of(context).primaryColor,
-            );
-          }).toList(),
+          children:
+              _workoutTypeOptions.map((type) {
+                final isSelected = _selectedWorkoutTypes.contains(type);
+                return FilterChip(
+                  label: Text(type),
+                  selected: isSelected,
+                  onSelected: (selected) {
+                    setState(() {
+                      if (selected) {
+                        _selectedWorkoutTypes.add(type);
+                      } else {
+                        _selectedWorkoutTypes.remove(type);
+                      }
+                    });
+                  },
+                  selectedColor: Theme.of(
+                    context,
+                  ).primaryColor.withOpacity(0.3),
+                  checkmarkColor: Theme.of(context).primaryColor,
+                );
+              }).toList(),
         ),
         // Validator for chips (manual check in _saveProfile for now)
       ],
@@ -178,20 +226,36 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              Text('Tell us a bit about yourself', textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+              Text(
+                'Tell us a bit about yourself',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 24),
               TextFormField(
                 controller: _zipCodeController,
-                decoration: const InputDecoration(labelText: 'Zip Code', prefixIcon: Icon(Icons.location_on_outlined)),
+                decoration: const InputDecoration(
+                  labelText: 'Zip Code',
+                  prefixIcon: Icon(Icons.location_on_outlined),
+                ),
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                validator: (value) => (value == null || value.isEmpty) ? 'Please enter your zip code' : null,
+                validator:
+                    (value) =>
+                        (value == null || value.isEmpty)
+                            ? 'Please enter your zip code'
+                            : null,
               ),
               const SizedBox(height: 20),
               TextFormField(
                 readOnly: true,
                 controller: TextEditingController(
-                  text: _selectedDateOfBirth == null ? '' : DateFormat.yMd().format(_selectedDateOfBirth!)
+                  text:
+                      _selectedDateOfBirth == null
+                          ? ''
+                          : DateFormat.yMd().format(_selectedDateOfBirth!),
                 ),
                 decoration: InputDecoration(
                   labelText: 'Date of Birth',
@@ -199,18 +263,24 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                   suffixIcon: IconButton(
                     icon: const Icon(Icons.edit_calendar_outlined),
                     onPressed: _presentDatePicker,
-                  )
+                  ),
                 ),
                 onTap: _presentDatePicker,
-                validator: (value) => _selectedDateOfBirth == null ? 'Please select your date of birth' : null,
+                validator:
+                    (value) =>
+                        _selectedDateOfBirth == null
+                            ? 'Please select your date of birth'
+                            : null,
               ),
               const SizedBox(height: 20),
               _buildDropdown<String>(
                 labelText: 'Primary Fitness Goal',
                 value: _selectedFitnessGoal,
                 items: _fitnessGoalOptions,
-                onChanged: (value) => setState(() => _selectedFitnessGoal = value),
-                validator: (value) => value == null ? 'Please select a goal' : null,
+                onChanged:
+                    (value) => setState(() => _selectedFitnessGoal = value),
+                validator:
+                    (value) => value == null ? 'Please select a goal' : null,
               ),
               const SizedBox(height: 20),
               _buildWorkoutTypeChips(),
@@ -224,15 +294,35 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
               const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: _isLoading ? null : _saveProfile,
-                style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
-                child: _isLoading
-                    ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white))
-                    : const Text('Save & Continue', style: TextStyle(fontSize: 16)),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child:
+                    _isLoading
+                        ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 3,
+                            color: Colors.white,
+                          ),
+                        )
+                        : const Text(
+                          'Save & Continue',
+                          style: TextStyle(fontSize: 16),
+                        ),
               ),
+              const SizedBox(height: 24),
+              const StepProgressIndicator(
+                totalSteps: 3,
+                currentStep: 2,
+                activeColor: Colors.orange, // Example color
+              ),
+              const SizedBox(height: 20), // Spacing below indicator
             ],
           ),
         ),
       ),
     );
   }
-} 
+}

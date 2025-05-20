@@ -11,6 +11,7 @@ import 'package:push_pal/src/features/splash/presentation/splash_screen.dart'; /
 import 'package:push_pal/src/features/auth/presentation/login_screen.dart'; // Import LoginScreen
 import 'package:push_pal/src/features/auth/presentation/signup_screen.dart'; // Import SignupScreen
 import 'package:push_pal/src/features/auth/presentation/create_profile_screen.dart'; // Import CreateProfileScreen
+import 'package:push_pal/src/features/auth/presentation/availability_screen.dart'; // Import AvailabilityScreen
 
 // Provider to track if the minimum splash screen time has elapsed
 final splashMinTimeElapsedProvider = StateProvider<bool>((ref) => false);
@@ -36,54 +37,97 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
   final authState = ref.watch(authStateChangesProvider);
   final profileState = ref.watch(currentUserProfileStreamProvider);
-  final minSplashTimeElapsed = ref.watch(splashMinTimeElapsedProvider); // Watch the new provider
+  final minSplashTimeElapsed = ref.watch(
+    splashMinTimeElapsedProvider,
+  ); // Watch the new provider
 
   final UserProfile? watchedProfile = profileState.valueOrNull;
-  final bool watchedProfileComplete = watchedProfile?.profileSetupComplete ?? false;
-  print('[GoRouterProvider BUILDER] Watched authState loading: ${authState.isLoading}, hasValue: ${authState.hasValue}');
-  print('[GoRouterProvider BUILDER] Watched profileState loading: ${profileState.isLoading}, hasValue: ${profileState.hasValue}, value: ${watchedProfile?.toMap()}, isComplete: $watchedProfileComplete');
+  final bool watchedProfileComplete =
+      watchedProfile?.profileSetupComplete ?? false;
+  print(
+    '[GoRouterProvider BUILDER] Watched authState loading: ${authState.isLoading}, hasValue: ${authState.hasValue}',
+  );
+  print(
+    '[GoRouterProvider BUILDER] Watched profileState loading: ${profileState.isLoading}, hasValue: ${profileState.hasValue}, value: ${watchedProfile?.toMap()}, isComplete: $watchedProfileComplete',
+  );
 
   return GoRouter(
-    initialLocation: '/splash', 
+    initialLocation: '/splash',
     navigatorKey: _rootNavigatorKey,
-    debugLogDiagnostics: true, 
+    debugLogDiagnostics: true,
     redirect: (BuildContext context, GoRouterState state) {
       final isLoggedIn = authState.valueOrNull != null;
       final UserProfile? userProfile = profileState.valueOrNull;
-      final bool isProfileSetupComplete = userProfile?.profileSetupComplete ?? false;
-      final bool actualMinSplashTimeElapsed = ref.read(splashMinTimeElapsedProvider); // Read current state
+      final bool isProfileSetupComplete =
+          userProfile?.profileSetupComplete ?? false;
+      // Helper to check if core profile fields are filled (excluding availability)
+      final bool areCoreProfileFieldsFilled =
+          userProfile != null &&
+          userProfile.displayName != null &&
+          !userProfile.displayName!.isEmpty &&
+          userProfile.fitnessGoal != null &&
+          !userProfile.fitnessGoal!.isEmpty &&
+          userProfile.gender != null &&
+          !userProfile.gender!.isEmpty &&
+          userProfile.dateOfBirth != null &&
+          userProfile.locationZipCode != null &&
+          !userProfile.locationZipCode!.isEmpty &&
+          userProfile.preferredWorkoutTypes != null &&
+          userProfile.preferredWorkoutTypes!.isNotEmpty;
+
+      final bool actualMinSplashTimeElapsed = ref.read(
+        splashMinTimeElapsedProvider,
+      );
 
       final String currentLocation = state.matchedLocation;
-      
+
       print(
-        '[GoRouter Redirect] Current: $currentLocation, AuthLoading: ${authState.isLoading}, ProfileLoading: ${profileState.isLoading}, LoggedIn: $isLoggedIn, ProfileComplete: $isProfileSetupComplete, SplashTimeElapsed: $actualMinSplashTimeElapsed'
+        '[GoRouter Redirect] Current: $currentLocation, AuthLoading: ${authState.isLoading}, ProfileLoading: ${profileState.isLoading}, LoggedIn: $isLoggedIn, ProfileComplete: $isProfileSetupComplete, SplashTimeElapsed: $actualMinSplashTimeElapsed',
       );
 
       // If auth or profile is loading OR min splash time NOT elapsed, and we are on splash, stay on splash
-      if (currentLocation == '/splash' && ((authState.isLoading || (isLoggedIn && profileState.isLoading && userProfile == null)) || !actualMinSplashTimeElapsed) ) {
-         print('[GoRouter Redirect] Auth/Profile loading or min splash time not elapsed, staying on splash.');
-        return null; 
+      if (currentLocation == '/splash' &&
+          ((authState.isLoading ||
+                  (isLoggedIn &&
+                      profileState.isLoading &&
+                      userProfile == null)) ||
+              !actualMinSplashTimeElapsed)) {
+        print(
+          '[GoRouter Redirect] Auth/Profile loading or min splash time not elapsed, staying on splash.',
+        );
+        return null;
       }
-      
+
       // Logic for navigating away from splash once auth (and profile if logged in) is determined AND min time elapsed
-      if (currentLocation == '/splash' && actualMinSplashTimeElapsed) { // Check minSplashTimeElapsed here
-        if (!authState.isLoading) { // Auth state is determined
+      if (currentLocation == '/splash' && actualMinSplashTimeElapsed) {
+        if (!authState.isLoading) {
           if (!isLoggedIn) {
             print('[GoRouter Redirect] From Splash: Not logged in -> /login');
             return '/login';
-          } else { // Logged in, now check profile
-            if (!profileState.isLoading || userProfile != null) { // Profile state also determined or already loaded
+          } else {
+            if (!profileState.isLoading || userProfile != null) {
               if (isProfileSetupComplete) {
-                print('[GoRouter Redirect] From Splash: Logged in, profile complete -> /');
+                print(
+                  '[GoRouter Redirect] From Splash: Logged in, profile complete -> /',
+                );
                 return '/';
+              } else if (areCoreProfileFieldsFilled) {
+                print(
+                  '[GoRouter Redirect] From Splash: Logged in, core profile filled, needs availability -> /set-availability',
+                );
+                return '/set-availability';
               } else {
-                print('[GoRouter Redirect] From Splash: Logged in, profile INCOMPLETE -> /create-profile');
+                print(
+                  '[GoRouter Redirect] From Splash: Logged in, profile INCOMPLETE -> /create-profile',
+                );
                 return '/create-profile';
               }
             } else {
               // Profile is still loading, stay on splash (this case should be covered by the initial loading check)
-              print('[GoRouter Redirect] From Splash: Logged in, but profile still loading, staying splash (should be rare here)');
-              return null; 
+              print(
+                '[GoRouter Redirect] From Splash: Logged in, but profile still loading, staying splash (should be rare here)',
+              );
+              return null;
             }
           }
         }
@@ -94,53 +138,85 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       if (!isLoggedIn) {
         // If not logged in, allow only login, signup
         if (currentLocation != '/login' && currentLocation != '/signup') {
-          print('[GoRouter Redirect] Not logged in & not on auth pages -> /login');
+          print(
+            '[GoRouter Redirect] Not logged in & not on auth pages -> /login',
+          );
           return '/login';
         }
-      } else { // User is logged in
-        // If profile setup is not complete, redirect to create-profile screen
-        // unless already there.
-        if (!isProfileSetupComplete && currentLocation != '/create-profile') {
-          print('[GoRouter Redirect] Logged in, profile INCOMPLETE -> /create-profile');
-          return '/create-profile';
+      } else {
+        // User is logged in
+        if (!isProfileSetupComplete) {
+          if (currentLocation == '/create-profile' ||
+              currentLocation == '/set-availability') {
+            return null; // Allow staying on these pages if profile is not complete
+          }
+          if (!areCoreProfileFieldsFilled) {
+            print(
+              '[GoRouter Redirect] Logged in, core profile INCOMPLETE -> /create-profile',
+            );
+            return '/create-profile';
+          }
+          // Core fields are filled, but profile setup is not complete (means availability is next)
+          print(
+            '[GoRouter Redirect] Logged in, core profile complete, needs availability -> /set-availability',
+          );
+          return '/set-availability';
         }
 
-        // If profile IS complete, and user is on login, signup, or create-profile, redirect to home
-        if (isProfileSetupComplete && 
-            (currentLocation == '/login' || currentLocation == '/signup' || currentLocation == '/create-profile')) {
-          print('[GoRouter Redirect] Logged in, profile COMPLETE, but on auth/create page -> /');
-          return '/';
-        }
-
-        // Allow navigation to home if profile is complete
-        if (isProfileSetupComplete && currentLocation == '/') {
-          print('[GoRouter Redirect] Logged in, profile COMPLETE, navigating to home');
-          return null;
-        }
-
-        // If we're on create-profile and profile is complete, go to home
-        if (isProfileSetupComplete && currentLocation == '/create-profile') {
-          print('[GoRouter Redirect] On create-profile but profile is COMPLETE -> /');
+        // If profile IS complete, and user is on login, signup, create-profile, or set-availability, redirect to home
+        if (isProfileSetupComplete &&
+            (currentLocation == '/login' ||
+                currentLocation == '/signup' ||
+                currentLocation == '/create-profile' ||
+                currentLocation == '/set-availability')) {
+          print(
+            '[GoRouter Redirect] Logged in, profile COMPLETE, but on auth/setup page -> /',
+          );
           return '/';
         }
       }
       return null; // No redirect needed
     },
     routes: [
-      GoRoute(path: '/splash', name: 'splash', builder: (context, state) => const SplashScreen()),
-      GoRoute(path: '/', name: 'home', builder: (context, state) => const HomeScreen()),
-      GoRoute(path: '/login', name: 'login', builder: (context, state) => const LoginScreen()),
-      GoRoute(path: '/signup', name: 'signup', builder: (context, state) => const SignupScreen()),
-      GoRoute( // Add route for CreateProfileScreen
+      GoRoute(
+        path: '/splash',
+        name: 'splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
+      GoRoute(
+        path: '/',
+        name: 'home',
+        builder: (context, state) => const HomeScreen(),
+      ),
+      GoRoute(
+        path: '/login',
+        name: 'login',
+        builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/signup',
+        name: 'signup',
+        builder: (context, state) => const SignupScreen(),
+      ),
+      GoRoute(
         path: '/create-profile',
         name: 'createProfile',
         builder: (context, state) => const CreateProfileScreen(),
       ),
+      GoRoute(
+        // Add route for AvailabilityScreen
+        path: '/set-availability',
+        name: 'setAvailability',
+        builder: (context, state) => const AvailabilityScreen(),
+      ),
     ],
-    errorBuilder: (context, state) => Scaffold( 
-      appBar: AppBar(title: const Text('Page Not Found')),
-      body: Center(child: Text('Error: ${state.error?.message ?? 'Page not found'}')),
-    ),
+    errorBuilder:
+        (context, state) => Scaffold(
+          appBar: AppBar(title: const Text('Page Not Found')),
+          body: Center(
+            child: Text('Error: ${state.error?.message ?? 'Page not found'}'),
+          ),
+        ),
   );
 });
 
@@ -159,4 +235,4 @@ class GoRouterRefreshStream extends ChangeNotifier {
   }
 }
 
-// HomeScreen has been moved to its own file. 
+// HomeScreen has been moved to its own file.

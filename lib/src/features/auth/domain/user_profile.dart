@@ -12,6 +12,8 @@ class UserProfile {
   final List<String>? preferredWorkoutTypes; // Changed to List<String>
   final Timestamp? dateOfBirth; // Added dateOfBirth
   final String? gender; // e.g., "male", "female", "other", "preferNotToSay"
+  final Map<String, List<String>>?
+  workoutAvailability; // Key: workoutType, Value: list of time slots
 
   UserProfile({
     required this.uid,
@@ -25,6 +27,7 @@ class UserProfile {
     this.preferredWorkoutTypes,
     this.dateOfBirth,
     this.gender,
+    this.workoutAvailability,
   });
 
   UserProfile copyWith({
@@ -39,6 +42,7 @@ class UserProfile {
     List<String>? preferredWorkoutTypes,
     Timestamp? dateOfBirth, // Added dateOfBirth
     String? gender,
+    Map<String, List<String>>? workoutAvailability,
   }) {
     return UserProfile(
       uid: uid ?? this.uid,
@@ -49,9 +53,11 @@ class UserProfile {
       updatedAt: updatedAt ?? this.updatedAt,
       locationZipCode: locationZipCode ?? this.locationZipCode,
       fitnessGoal: fitnessGoal ?? this.fitnessGoal,
-      preferredWorkoutTypes: preferredWorkoutTypes ?? this.preferredWorkoutTypes,
+      preferredWorkoutTypes:
+          preferredWorkoutTypes ?? this.preferredWorkoutTypes,
       dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       gender: gender ?? this.gender,
+      workoutAvailability: workoutAvailability ?? this.workoutAvailability,
     );
   }
 
@@ -62,13 +68,16 @@ class UserProfile {
       if (displayName != null) 'displayName': displayName,
       'profileSetupComplete': profileSetupComplete,
       'createdAt': createdAt ?? FieldValue.serverTimestamp(), // Set on create
-      'updatedAt': updatedAt ?? FieldValue.serverTimestamp(), // Set on create/update
+      'updatedAt':
+          updatedAt ?? FieldValue.serverTimestamp(), // Set on create/update
       if (locationZipCode != null) 'locationZipCode': locationZipCode,
       if (fitnessGoal != null) 'fitnessGoal': fitnessGoal,
-      if (preferredWorkoutTypes != null && preferredWorkoutTypes!.isNotEmpty) 
+      if (preferredWorkoutTypes != null && preferredWorkoutTypes!.isNotEmpty)
         'preferredWorkoutTypes': preferredWorkoutTypes,
       if (dateOfBirth != null) 'dateOfBirth': dateOfBirth,
       if (gender != null) 'gender': gender,
+      if (workoutAvailability != null)
+        'workoutAvailability': workoutAvailability,
     };
   }
 
@@ -82,11 +91,21 @@ class UserProfile {
       updatedAt: map['updatedAt'] as Timestamp?,
       locationZipCode: map['locationZipCode'] as String?,
       fitnessGoal: map['fitnessGoal'] as String?,
-      preferredWorkoutTypes: map['preferredWorkoutTypes'] != null 
-          ? List<String>.from(map['preferredWorkoutTypes'] as List<dynamic>)
-          : null, // Changed to List<String>
+      preferredWorkoutTypes:
+          map['preferredWorkoutTypes'] != null
+              ? List<String>.from(map['preferredWorkoutTypes'] as List<dynamic>)
+              : null, // Changed to List<String>
       dateOfBirth: map['dateOfBirth'] as Timestamp?, // Added dateOfBirth
       gender: map['gender'] as String?,
+      workoutAvailability:
+          map['workoutAvailability'] != null
+              ? Map<String, List<String>>.from(
+                (map['workoutAvailability'] as Map<String, dynamic>).map(
+                  (key, value) =>
+                      MapEntry(key, List<String>.from(value as List<dynamic>)),
+                ),
+              )
+              : null,
     );
   }
-} 
+}

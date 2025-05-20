@@ -21,11 +21,11 @@ class UserProfileService {
   // Using set with merge: true will create if it doesn't exist, or update if it does.
   Future<void> setUserProfile(UserProfile userProfile) async {
     try {
-      // Ensure updatedAt is set and profileSetupComplete is true
+      // Ensure updatedAt is set before saving
+      // profileSetupComplete will be taken from the passed userProfile object.
       final profileToSave = userProfile.copyWith(
         updatedAt: Timestamp.now(),
-        profileSetupComplete:
-            true, // Ensure this is true when profile is being set
+        // profileSetupComplete: true, // REVERTED: Respect the incoming userProfile's value
         // If createdAt is null (e.g. new profile), toMap will use FieldValue.serverTimestamp()
         // If it's an update, existing createdAt should be preserved by copyWith if not null.
         createdAt: userProfile.createdAt,
@@ -34,7 +34,7 @@ class UserProfileService {
           .doc(userProfile.uid)
           .set(profileToSave, SetOptions(merge: true));
       print(
-        'UserProfile for ${userProfile.uid} saved/updated. ProfileSetupComplete: true',
+        'UserProfile for ${userProfile.uid} saved/updated. ProfileSetupComplete: ${profileToSave.profileSetupComplete}',
       );
     } catch (e) {
       print('Error saving user profile: ${e.toString()}');
