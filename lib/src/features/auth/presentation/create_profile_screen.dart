@@ -27,6 +27,51 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
   String? _selectedGender;
   bool _isLoading = false;
 
+  // Categorized Workout Types
+  final Map<String, List<String>> _categorizedWorkoutOptions = {
+    "Gym & Strength": [
+      "Weightlifting",
+      "CrossFit",
+      "Postnatal Strength Training",
+      "Calisthenics / Bodyweight Training",
+      "Functional Training",
+    ],
+    "Cardio & Endurance": [
+      "Running",
+      "Cycling",
+      "HIIT",
+      "Swimming",
+      "Sports",
+      "Dancing",
+    ],
+    "Mind, Body & Low Impact": [
+      "Yoga",
+      "Pilates (modified)",
+      "Tai Chi",
+      "Chair Yoga",
+      "Stretching & Mobility",
+      "Meditation Group",
+      "Gentle Exercise", // Added from fitness goals, fits here
+      "Low-Impact Fitness", // Added from fitness goals, fits here
+      "Water Aerobics",
+      "Prenatal Yoga",
+      "Senior Fitness Class", // Added here
+    ],
+    "Outdoor & Recreational": [
+      "Hiking",
+      "Walking",
+      "Fishing",
+      "Social Walking Group",
+    ],
+    // "Specialized & Other": [ // If any don't fit neatly
+    //   "Senior Fitness Class", // Could also be in Low Impact
+    // ]
+  };
+  // Note: "Senior Fitness Class" can be in "Mind, Body & Low Impact" or a dedicated category if more such items appear.
+  // For now, let's place it in Mind, Body & Low Impact for simplicity as it often has those characteristics.
+  // We will also add it there.
+  // _categorizedWorkoutOptions["Mind, Body & Low Impact"]!.add("Senior Fitness Class"); // Let's add it directly
+
   final List<String> _fitnessGoalOptions = [
     "Weight Loss",
     "Muscle Gain",
@@ -34,20 +79,11 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
     "General Fitness",
     "Improve Flexibility",
     "Stress Relief",
-  ];
-  final List<String> _workoutTypeOptions = [
-    "Weightlifting",
-    "Running",
-    "Yoga",
-    "Cycling",
-    "HIIT",
-    "CrossFit",
-    "Swimming",
-    "Dancing",
-    "Sports",
-    "Hiking",
-    "Walking",
-    "Fishing",
+    "Postpartum Recovery",
+    "Gentle Exercise",
+    "Low-Impact Fitness",
+    "Active Aging",
+    "Prenatal Fitness",
   ];
   final List<String> _genderOptions = [
     "Male",
@@ -182,36 +218,60 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Preferred Workout Types (Select at least one)',
+          'Preferred Workout Types (Select at least one from relevant categories)',
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 8),
-        Wrap(
-          spacing: 8.0,
-          runSpacing: 4.0,
-          children:
-              _workoutTypeOptions.map((type) {
-                final isSelected = _selectedWorkoutTypes.contains(type);
-                return FilterChip(
-                  label: Text(type),
-                  selected: isSelected,
-                  onSelected: (selected) {
-                    setState(() {
-                      if (selected) {
-                        _selectedWorkoutTypes.add(type);
-                      } else {
-                        _selectedWorkoutTypes.remove(type);
-                      }
-                    });
-                  },
-                  selectedColor: Theme.of(
-                    context,
-                  ).primaryColor.withOpacity(0.3),
-                  checkmarkColor: Theme.of(context).primaryColor,
-                );
-              }).toList(),
-        ),
-        // Validator for chips (manual check in _saveProfile for now)
+        ..._categorizedWorkoutOptions.entries.map((entry) {
+          String category = entry.key;
+          List<String> workouts = entry.value;
+          // Check if any workout in this category is selected to potentially pre-expand the tile
+          // bool isCategoryInitiallyExpanded = workouts.any((workout) => _selectedWorkoutTypes.contains(workout));
+
+          return Card(
+            margin: const EdgeInsets.symmetric(vertical: 4.0),
+            child: ExpansionTile(
+              title: Text(
+                category,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              // initiallyExpanded: isCategoryInitiallyExpanded, // Optional: expand if a selection exists within
+              childrenPadding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 8.0,
+              ),
+              children: [
+                Wrap(
+                  spacing: 8.0,
+                  runSpacing: 4.0,
+                  children:
+                      workouts.map((type) {
+                        final isSelected = _selectedWorkoutTypes.contains(type);
+                        return FilterChip(
+                          label: Text(type),
+                          selected: isSelected,
+                          onSelected: (selected) {
+                            setState(() {
+                              if (selected) {
+                                _selectedWorkoutTypes.add(type);
+                              } else {
+                                _selectedWorkoutTypes.remove(type);
+                              }
+                            });
+                          },
+                          selectedColor: Theme.of(
+                            context,
+                          ).primaryColor.withOpacity(0.3),
+                          checkmarkColor: Theme.of(context).primaryColor,
+                        );
+                      }).toList(),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
       ],
     );
   }

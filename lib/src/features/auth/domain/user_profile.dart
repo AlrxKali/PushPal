@@ -14,6 +14,9 @@ class UserProfile {
   final String? gender; // e.g., "male", "female", "other", "preferNotToSay"
   final Map<String, List<String>>?
   workoutAvailability; // Key: workoutType, Value: list of time slots
+  final String? durationPreference; // e.g., "30 mins", "1 hour"
+  final String? intensityPreference; // e.g., "Low", "Moderate", "High"
+  final String? preferredBuddyGender; // e.g., "Male", "Female", "No Preference"
 
   UserProfile({
     required this.uid,
@@ -28,6 +31,9 @@ class UserProfile {
     this.dateOfBirth,
     this.gender,
     this.workoutAvailability,
+    this.durationPreference,
+    this.intensityPreference,
+    this.preferredBuddyGender,
   });
 
   UserProfile copyWith({
@@ -43,6 +49,9 @@ class UserProfile {
     Timestamp? dateOfBirth, // Added dateOfBirth
     String? gender,
     Map<String, List<String>>? workoutAvailability,
+    String? durationPreference,
+    String? intensityPreference,
+    String? preferredBuddyGender,
   }) {
     return UserProfile(
       uid: uid ?? this.uid,
@@ -58,6 +67,9 @@ class UserProfile {
       dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       gender: gender ?? this.gender,
       workoutAvailability: workoutAvailability ?? this.workoutAvailability,
+      durationPreference: durationPreference ?? this.durationPreference,
+      intensityPreference: intensityPreference ?? this.intensityPreference,
+      preferredBuddyGender: preferredBuddyGender ?? this.preferredBuddyGender,
     );
   }
 
@@ -78,6 +90,11 @@ class UserProfile {
       if (gender != null) 'gender': gender,
       if (workoutAvailability != null)
         'workoutAvailability': workoutAvailability,
+      if (durationPreference != null) 'durationPreference': durationPreference,
+      if (intensityPreference != null)
+        'intensityPreference': intensityPreference,
+      if (preferredBuddyGender != null)
+        'preferredBuddyGender': preferredBuddyGender,
     };
   }
 
@@ -106,6 +123,9 @@ class UserProfile {
                 ),
               )
               : null,
+      durationPreference: map['durationPreference'] as String?,
+      intensityPreference: map['intensityPreference'] as String?,
+      preferredBuddyGender: map['preferredBuddyGender'] as String?,
     );
   }
 }
