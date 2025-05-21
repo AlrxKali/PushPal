@@ -47,6 +47,7 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
     "Sports",
     "Hiking",
     "Walking",
+    "Fishing",
   ];
   final List<String> _genderOptions = [
     "Male",
