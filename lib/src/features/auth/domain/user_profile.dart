@@ -17,6 +17,9 @@ class UserProfile {
   final String? durationPreference; // e.g., "30 mins", "1 hour"
   final String? intensityPreference; // e.g., "Low", "Moderate", "High"
   final String? preferredBuddyGender; // e.g., "Male", "Female", "No Preference"
+  final String? profilePictureUrl; // Added
+  final String? aboutMe; // Added
+  final String? experienceLevel; // e.g., "Beginner", "Intermediate", "Advanced"
 
   UserProfile({
     required this.uid,
@@ -34,6 +37,9 @@ class UserProfile {
     this.durationPreference,
     this.intensityPreference,
     this.preferredBuddyGender,
+    this.profilePictureUrl,
+    this.aboutMe,
+    this.experienceLevel,
   });
 
   UserProfile copyWith({
@@ -52,6 +58,9 @@ class UserProfile {
     String? durationPreference,
     String? intensityPreference,
     String? preferredBuddyGender,
+    String? profilePictureUrl, // Added
+    String? aboutMe, // Added
+    String? experienceLevel,
   }) {
     return UserProfile(
       uid: uid ?? this.uid,
@@ -70,6 +79,9 @@ class UserProfile {
       durationPreference: durationPreference ?? this.durationPreference,
       intensityPreference: intensityPreference ?? this.intensityPreference,
       preferredBuddyGender: preferredBuddyGender ?? this.preferredBuddyGender,
+      profilePictureUrl: profilePictureUrl ?? this.profilePictureUrl, // Added
+      aboutMe: aboutMe ?? this.aboutMe, // Added
+      experienceLevel: experienceLevel ?? this.experienceLevel,
     );
   }
 
@@ -95,6 +107,10 @@ class UserProfile {
         'intensityPreference': intensityPreference,
       if (preferredBuddyGender != null)
         'preferredBuddyGender': preferredBuddyGender,
+      if (profilePictureUrl != null)
+        'profilePictureUrl': profilePictureUrl, // Added
+      if (aboutMe != null) 'aboutMe': aboutMe, // Added
+      if (experienceLevel != null) 'experienceLevel': experienceLevel,
     };
   }
 
@@ -126,6 +142,9 @@ class UserProfile {
       durationPreference: map['durationPreference'] as String?,
       intensityPreference: map['intensityPreference'] as String?,
       preferredBuddyGender: map['preferredBuddyGender'] as String?,
+      profilePictureUrl: map['profilePictureUrl'] as String?, // Added
+      aboutMe: map['aboutMe'] as String?, // Added
+      experienceLevel: map['experienceLevel'] as String?,
     );
   }
 }

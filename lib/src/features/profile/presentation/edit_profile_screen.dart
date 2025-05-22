@@ -1,34 +1,36 @@
-import 'package:cloud_firestore/cloud_firestore.dart'; // For Timestamp
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart'; // For date formatting
-import 'package:push_pal/src/features/auth/application/auth_service.dart';
+import 'package:intl/intl.dart';
 import 'package:push_pal/src/features/auth/application/user_profile_service.dart';
 import 'package:push_pal/src/features/auth/domain/user_profile.dart';
-import 'package:push_pal/src/widgets/step_progress_indicator.dart'; // Import the progress indicator
+import 'package:push_pal/src/features/auth/application/auth_service.dart'; // For current user
 
-class CreateProfileScreen extends ConsumerStatefulWidget {
-  const CreateProfileScreen({super.key});
+class EditProfileScreen extends ConsumerStatefulWidget {
+  const EditProfileScreen({super.key});
 
   @override
-  ConsumerState<CreateProfileScreen> createState() =>
-      _CreateProfileScreenState();
+  ConsumerState<EditProfileScreen> createState() => _EditProfileScreenState();
 }
 
-class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
+class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _zipCodeController = TextEditingController();
+  late TextEditingController _displayNameController;
+  late TextEditingController _aboutMeController;
+  late TextEditingController _zipCodeController;
   DateTime? _selectedDateOfBirth;
-
   String? _selectedFitnessGoal;
-  final List<String> _selectedWorkoutTypes = []; // For multi-select
+  List<String> _selectedWorkoutTypes = [];
   String? _selectedGender;
-  bool _isLoading = false;
   String? _selectedExperienceLevel;
+  String? _selectedDurationPreference;
+  String? _selectedIntensityPreference;
+  String? _selectedBuddyGender;
+  bool _isLoading = false;
 
-  // Categorized Workout Types
+  // Options (can be shared or redefined here, consider a constants file later)
   final Map<String, List<String>> _categorizedWorkoutOptions = {
     "Gym & Strength": [
       "Weightlifting",
@@ -52,11 +54,11 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
       "Chair Yoga",
       "Stretching & Mobility",
       "Meditation Group",
-      "Gentle Exercise", // Added from fitness goals, fits here
-      "Low-Impact Fitness", // Added from fitness goals, fits here
+      "Gentle Exercise",
+      "Low-Impact Fitness",
       "Water Aerobics",
       "Prenatal Yoga",
-      "Senior Fitness Class", // Added here
+      "Senior Fitness Class",
     ],
     "Outdoor & Recreational": [
       "Hiking",
@@ -64,15 +66,7 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
       "Fishing",
       "Social Walking Group",
     ],
-    // "Specialized & Other": [ // If any don't fit neatly
-    //   "Senior Fitness Class", // Could also be in Low Impact
-    // ]
   };
-  // Note: "Senior Fitness Class" can be in "Mind, Body & Low Impact" or a dedicated category if more such items appear.
-  // For now, let's place it in Mind, Body & Low Impact for simplicity as it often has those characteristics.
-  // We will also add it there.
-  // _categorizedWorkoutOptions["Mind, Body & Low Impact"]!.add("Senior Fitness Class"); // Let's add it directly
-
   final List<String> _fitnessGoalOptions = [
     "Weight Loss",
     "Muscle Gain",
@@ -99,9 +93,55 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
     "Advanced",
     "Varies / All Levels",
   ];
+  final List<String> _durationOptions = [
+    "Under 30 minutes",
+    "30-45 minutes",
+    "45-60 minutes",
+    "1 hour - 1.5 hours",
+    "Over 1.5 hours",
+    "Flexible",
+  ];
+  final List<String> _intensityOptions = [
+    "Low (Gentle, easy pace)",
+    "Moderate (Noticeable effort, can talk)",
+    "High (Vigorous, challenging)",
+    "Varies / Flexible",
+  ];
+  final List<String> _buddyGenderOptions = [
+    "Male",
+    "Female",
+    "Mixed Group / No Preference",
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    final userProfile = ref.read(currentUserProfileStreamProvider).valueOrNull;
+    _displayNameController = TextEditingController(
+      text: userProfile?.displayName ?? '',
+    );
+    _aboutMeController = TextEditingController(
+      text: userProfile?.aboutMe ?? '',
+    );
+    _zipCodeController = TextEditingController(
+      text: userProfile?.locationZipCode ?? '',
+    );
+    _selectedDateOfBirth = userProfile?.dateOfBirth?.toDate();
+    _selectedFitnessGoal = userProfile?.fitnessGoal;
+    _selectedWorkoutTypes = List<String>.from(
+      userProfile?.preferredWorkoutTypes ?? [],
+    );
+    _selectedGender = userProfile?.gender;
+    _selectedExperienceLevel = userProfile?.experienceLevel;
+    _selectedDurationPreference = userProfile?.durationPreference;
+    _selectedIntensityPreference = userProfile?.intensityPreference;
+    _selectedBuddyGender = userProfile?.preferredBuddyGender;
+  }
 
   @override
   void dispose() {
+    _displayNameController.dispose();
+    _aboutMeController.dispose();
     _zipCodeController.dispose();
     super.dispose();
   }
@@ -113,90 +153,84 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
       initialDate:
           _selectedDateOfBirth ?? DateTime(now.year - 18, now.month, now.day),
       firstDate: DateTime(1920),
-      lastDate: DateTime(
-        now.year - 13,
-        now.month,
-        now.day,
-      ), // Must be at least 13
-      helpText: 'Select your date of birth',
+      lastDate: DateTime(now.year - 13, now.month, now.day),
     );
     if (picked != null && picked != _selectedDateOfBirth) {
-      setState(() {
-        _selectedDateOfBirth = picked;
-      });
+      setState(() => _selectedDateOfBirth = picked);
     }
   }
 
   Future<void> _saveProfile() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-
+    // Add validation for any new required fields here (e.g., DOB, fitness goal if they become non-optional in edit)
     if (_selectedFitnessGoal == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select your fitness goal.')),
-      );
+      /* show snackbar */
       return;
     }
     if (_selectedWorkoutTypes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select at least one preferred workout type.'),
-        ),
-      );
+      /* show snackbar */
       return;
     }
     if (_selectedDateOfBirth == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select your date of birth.')),
-      );
+      /* show snackbar */
       return;
     }
+    if (_selectedDurationPreference == null) {
+      /* show snackbar for duration */
+      return;
+    }
+    if (_selectedIntensityPreference == null) {
+      /* show snackbar for intensity */
+      return;
+    }
+    // Buddy gender is optional, no validation needed unless specified
 
     setState(() => _isLoading = true);
 
-    final currentUser = ref.read(currentUserProvider);
-    if (currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error: No authenticated user found.')),
-      );
+    final currentProfile =
+        ref.read(currentUserProfileStreamProvider).valueOrNull;
+    if (currentProfile == null) {
+      /* error handling */
       setState(() => _isLoading = false);
       return;
     }
 
-    final userProfile = UserProfile(
-      uid: currentUser.uid,
-      email: currentUser.email,
-      displayName: currentUser.displayName,
-      profileSetupComplete: false,
+    final updatedProfile = currentProfile.copyWith(
+      displayName: _displayNameController.text.trim(),
+      aboutMe: _aboutMeController.text.trim(),
       locationZipCode: _zipCodeController.text.trim(),
-      fitnessGoal: _selectedFitnessGoal,
-      preferredWorkoutTypes: _selectedWorkoutTypes,
       dateOfBirth:
           _selectedDateOfBirth != null
               ? Timestamp.fromDate(_selectedDateOfBirth!)
               : null,
+      fitnessGoal: _selectedFitnessGoal,
+      preferredWorkoutTypes: _selectedWorkoutTypes,
       gender: _selectedGender,
       experienceLevel: _selectedExperienceLevel,
+      durationPreference: _selectedDurationPreference,
+      intensityPreference: _selectedIntensityPreference,
+      preferredBuddyGender: _selectedBuddyGender,
+      // profileSetupComplete: true, // Should remain true if already true
     );
 
     try {
-      await ref.read(userProfileServiceProvider).setUserProfile(userProfile);
-      if (mounted) {
-        context.go('/set-availability');
-      }
-    } catch (e) {
+      await ref.read(userProfileServiceProvider).setUserProfile(updatedProfile);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save profile: ${e.toString()}')),
+          const SnackBar(content: Text('Profile updated successfully!')),
         );
+        context.pop();
       }
+    } catch (e) {
+      // error handling
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Widget _buildDropdown<T>({
-    required String labelText, // Changed from hintText for consistency
-    required T? value,
+    required String labelText,
+    T? value,
     required List<T> items,
     required ValueChanged<T?> onChanged,
     String? Function(T?)? validator,
@@ -222,20 +256,18 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
   }
 
   Widget _buildWorkoutTypeChips() {
+    // Copied from CreateProfileScreen, adjust if needed
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Preferred Workout Types (Select at least one from relevant categories)',
+          'Preferred Workout Types',
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 8),
         ..._categorizedWorkoutOptions.entries.map((entry) {
           String category = entry.key;
           List<String> workouts = entry.value;
-          // Check if any workout in this category is selected to potentially pre-expand the tile
-          // bool isCategoryInitiallyExpanded = workouts.any((workout) => _selectedWorkoutTypes.contains(workout));
-
           return Card(
             margin: const EdgeInsets.symmetric(vertical: 4.0),
             child: ExpansionTile(
@@ -245,7 +277,6 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                   context,
                 ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
               ),
-              // initiallyExpanded: isCategoryInitiallyExpanded, // Optional: expand if a selection exists within
               childrenPadding: const EdgeInsets.symmetric(
                 horizontal: 16.0,
                 vertical: 8.0,
@@ -262,11 +293,10 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                           selected: isSelected,
                           onSelected: (selected) {
                             setState(() {
-                              if (selected) {
+                              if (selected)
                                 _selectedWorkoutTypes.add(type);
-                              } else {
+                              else
                                 _selectedWorkoutTypes.remove(type);
-                              }
                             });
                           },
                           selectedColor: Theme.of(
@@ -287,7 +317,7 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Complete Your Profile')),
+      appBar: AppBar(title: const Text('Edit Your Profile')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Form(
@@ -295,27 +325,20 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              Text(
-                'Tell us a bit about yourself',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+              TextFormField(
+                controller: _displayNameController,
+                decoration: const InputDecoration(labelText: 'Display Name'),
+                validator:
+                    (v) => (v == null || v.isEmpty) ? 'Name required' : null,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               TextFormField(
                 controller: _zipCodeController,
-                decoration: const InputDecoration(
-                  labelText: 'Zip Code',
-                  prefixIcon: Icon(Icons.location_on_outlined),
-                ),
+                decoration: const InputDecoration(labelText: 'Zip Code'),
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 validator:
-                    (value) =>
-                        (value == null || value.isEmpty)
-                            ? 'Please enter your zip code'
-                            : null,
+                    (v) => (v == null || v.isEmpty) ? 'Zip required' : null,
               ),
               const SizedBox(height: 20),
               TextFormField(
@@ -336,20 +359,15 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                 ),
                 onTap: _presentDatePicker,
                 validator:
-                    (value) =>
-                        _selectedDateOfBirth == null
-                            ? 'Please select your date of birth'
-                            : null,
+                    (v) => _selectedDateOfBirth == null ? 'DOB required' : null,
               ),
               const SizedBox(height: 20),
               _buildDropdown<String>(
                 labelText: 'Primary Fitness Goal',
                 value: _selectedFitnessGoal,
                 items: _fitnessGoalOptions,
-                onChanged:
-                    (value) => setState(() => _selectedFitnessGoal = value),
-                validator:
-                    (value) => value == null ? 'Please select a goal' : null,
+                onChanged: (v) => setState(() => _selectedFitnessGoal = v),
+                validator: (v) => v == null ? 'Goal required' : null,
               ),
               const SizedBox(height: 20),
               _buildWorkoutTypeChips(),
@@ -358,20 +376,50 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                 labelText: 'Gender (Optional)',
                 value: _selectedGender,
                 items: _genderOptions,
-                onChanged: (value) => setState(() => _selectedGender = value),
+                onChanged: (v) => setState(() => _selectedGender = v),
               ),
               const SizedBox(height: 20),
               _buildDropdown<String>(
                 labelText: 'Experience Level',
                 value: _selectedExperienceLevel,
                 items: _experienceLevelOptions,
+                onChanged: (v) => setState(() => _selectedExperienceLevel = v),
+                validator: (v) => v == null ? 'Level required' : null,
+              ),
+              const SizedBox(height: 20),
+              _buildDropdown<String>(
+                labelText: 'Typical Workout Duration',
+                value: _selectedDurationPreference,
+                items: _durationOptions,
                 onChanged:
-                    (value) => setState(() => _selectedExperienceLevel = value),
-                validator:
-                    (value) =>
-                        value == null
-                            ? 'Please select your experience level'
-                            : null,
+                    (v) => setState(() => _selectedDurationPreference = v),
+                validator: (v) => v == null ? 'Duration required' : null,
+              ),
+              const SizedBox(height: 20),
+              _buildDropdown<String>(
+                labelText: 'Preferred Workout Intensity',
+                value: _selectedIntensityPreference,
+                items: _intensityOptions,
+                onChanged:
+                    (v) => setState(() => _selectedIntensityPreference = v),
+                validator: (v) => v == null ? 'Intensity required' : null,
+              ),
+              const SizedBox(height: 20),
+              _buildDropdown<String>(
+                labelText: 'Preferred Buddy Gender (Optional)',
+                value: _selectedBuddyGender,
+                items: _buddyGenderOptions,
+                onChanged: (v) => setState(() => _selectedBuddyGender = v),
+              ),
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: _aboutMeController,
+                decoration: const InputDecoration(
+                  labelText: 'About Me',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 4,
+                maxLength: 300,
               ),
               const SizedBox(height: 32),
               ElevatedButton(
@@ -390,17 +438,10 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                           ),
                         )
                         : const Text(
-                          'Save & Continue',
+                          'Save Changes',
                           style: TextStyle(fontSize: 16),
                         ),
               ),
-              const SizedBox(height: 24),
-              const StepProgressIndicator(
-                totalSteps: 3,
-                currentStep: 2,
-                activeColor: Colors.orange, // Example color
-              ),
-              const SizedBox(height: 20), // Spacing below indicator
             ],
           ),
         ),

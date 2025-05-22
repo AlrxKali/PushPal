@@ -12,13 +12,21 @@ import 'package:push_pal/src/features/auth/presentation/login_screen.dart'; // I
 import 'package:push_pal/src/features/auth/presentation/signup_screen.dart'; // Import SignupScreen
 import 'package:push_pal/src/features/auth/presentation/create_profile_screen.dart'; // Import CreateProfileScreen
 import 'package:push_pal/src/features/auth/presentation/availability_screen.dart'; // Import AvailabilityScreen
+import 'package:push_pal/src/routing/main_app_shell.dart'; // Import MainAppShell
+import 'package:push_pal/src/features/search/presentation/search_pals_screen.dart'; // Import SearchPalsScreen (will be Match)
+import 'package:push_pal/src/features/profile/presentation/profile_tab_screen.dart'; // Import ProfileTabScreen
+import 'package:push_pal/src/features/chat/presentation/chat_screen.dart'; // Import ChatScreen
+import 'package:push_pal/src/features/settings/presentation/settings_screen.dart'; // Import SettingsScreen
+import 'package:push_pal/src/features/profile/presentation/edit_profile_screen.dart'; // Import EditProfileScreen
 
 // Provider to track if the minimum splash screen time has elapsed
 final splashMinTimeElapsedProvider = StateProvider<bool>((ref) => false);
 
 // Private navigators
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
-// final _shellNavigatorKey = GlobalKey<NavigatorState>(); // Example for shell routes later
+final _shellNavigatorKey = GlobalKey<NavigatorState>(
+  debugLabel: 'shell',
+); // Navigator key for the ShellRoute
 
 // This notifier is used to refresh the router when auth state changes.
 // It should be provided globally if your GoRouter instance is global.
@@ -183,11 +191,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         name: 'splash',
         builder: (context, state) => const SplashScreen(),
       ),
-      GoRoute(
-        path: '/',
-        name: 'home',
-        builder: (context, state) => const HomeScreen(),
-      ),
+      // Auth routes (remain top-level, no shell)
       GoRoute(
         path: '/login',
         name: 'login',
@@ -204,10 +208,59 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const CreateProfileScreen(),
       ),
       GoRoute(
-        // Add route for AvailabilityScreen
         path: '/set-availability',
         name: 'setAvailability',
         builder: (context, state) => const AvailabilityScreen(),
+      ),
+      GoRoute(
+        path: '/edit-profile', // New top-level route
+        name: 'editProfile',
+        builder: (context, state) => const EditProfileScreen(),
+      ),
+      // ShellRoute for main app navigation (bottom nav bar)
+      ShellRoute(
+        navigatorKey: _shellNavigatorKey,
+        builder: (BuildContext context, GoRouterState state, Widget child) {
+          return MainAppShell(child: child);
+        },
+        routes: <RouteBase>[
+          GoRoute(
+            path: '/', // Corresponds to the first tab (Home)
+            name: 'home',
+            builder: (BuildContext context, GoRouterState state) {
+              return const HomeScreen();
+            },
+          ),
+          GoRoute(
+            path:
+                '/match', // Changed from /search-pals (Corresponds to the second tab)
+            name: 'match', // Changed from searchPals
+            builder: (BuildContext context, GoRouterState state) {
+              return const SearchPalsScreen(); // This screen can be renamed later if needed
+            },
+          ),
+          GoRoute(
+            path: '/profile-tab', // Corresponds to the third tab
+            name: 'profileTab',
+            builder: (BuildContext context, GoRouterState state) {
+              return const ProfileTabScreen();
+            },
+          ),
+          GoRoute(
+            path: '/chat', // Corresponds to the fourth tab
+            name: 'chat',
+            builder: (BuildContext context, GoRouterState state) {
+              return const ChatScreen();
+            },
+          ),
+          GoRoute(
+            path: '/settings-tab', // Corresponds to the fifth tab
+            name: 'settingsTab',
+            builder: (BuildContext context, GoRouterState state) {
+              return const SettingsScreen();
+            },
+          ),
+        ],
       ),
     ],
     errorBuilder:
