@@ -20,6 +20,7 @@ class UserProfile {
   final String? profilePictureUrl; // Added
   final String? aboutMe; // Added
   final String? experienceLevel; // e.g., "Beginner", "Intermediate", "Advanced"
+  final String? country; // Added country field
 
   UserProfile({
     required this.uid,
@@ -40,6 +41,7 @@ class UserProfile {
     this.profilePictureUrl,
     this.aboutMe,
     this.experienceLevel,
+    this.country, // Added country field
   });
 
   UserProfile copyWith({
@@ -61,6 +63,7 @@ class UserProfile {
     String? profilePictureUrl, // Added
     String? aboutMe, // Added
     String? experienceLevel,
+    String? country, // Added country field
   }) {
     return UserProfile(
       uid: uid ?? this.uid,
@@ -82,6 +85,7 @@ class UserProfile {
       profilePictureUrl: profilePictureUrl ?? this.profilePictureUrl, // Added
       aboutMe: aboutMe ?? this.aboutMe, // Added
       experienceLevel: experienceLevel ?? this.experienceLevel,
+      country: country ?? this.country, // Added country field
     );
   }
 
@@ -111,6 +115,7 @@ class UserProfile {
         'profilePictureUrl': profilePictureUrl, // Added
       if (aboutMe != null) 'aboutMe': aboutMe, // Added
       if (experienceLevel != null) 'experienceLevel': experienceLevel,
+      if (country != null) 'country': country, // Added country field
     };
   }
 
@@ -145,6 +150,7 @@ class UserProfile {
       profilePictureUrl: map['profilePictureUrl'] as String?, // Added
       aboutMe: map['aboutMe'] as String?, // Added
       experienceLevel: map['experienceLevel'] as String?,
+      country: map['country'] as String?, // Added country field
     );
   }
 }

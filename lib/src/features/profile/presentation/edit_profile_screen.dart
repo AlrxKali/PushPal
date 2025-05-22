@@ -28,6 +28,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   String? _selectedDurationPreference;
   String? _selectedIntensityPreference;
   String? _selectedBuddyGender;
+  String? _selectedCountry;
   bool _isLoading = false;
 
   // Options (can be shared or redefined here, consider a constants file later)
@@ -136,6 +137,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _selectedDurationPreference = userProfile?.durationPreference;
     _selectedIntensityPreference = userProfile?.intensityPreference;
     _selectedBuddyGender = userProfile?.preferredBuddyGender;
+    _selectedCountry = userProfile?.country;
   }
 
   @override
@@ -210,6 +212,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       durationPreference: _selectedDurationPreference,
       intensityPreference: _selectedIntensityPreference,
       preferredBuddyGender: _selectedBuddyGender,
+      country: _selectedCountry,
       // profileSetupComplete: true, // Should remain true if already true
     );
 
@@ -420,6 +423,41 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 ),
                 maxLines: 4,
                 maxLength: 300,
+                validator:
+                    (value) =>
+                        value == null || value.isEmpty
+                            ? 'Please enter your About Me'
+                            : null,
+              ),
+              const SizedBox(height: 16),
+
+              // Country Dropdown
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(
+                  labelText: 'Country *',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.public),
+                ),
+                value: _selectedCountry,
+                hint: const Text('Select your country'),
+                isExpanded: true,
+                items:
+                    ['USA', 'CAD', 'ESP'].map<DropdownMenuItem<String>>((
+                      String value,
+                    ) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    }).toList(),
+                onChanged: (String? newValue) {
+                  setState(() {
+                    _selectedCountry = newValue;
+                  });
+                },
+                validator:
+                    (value) =>
+                        value == null ? 'Please select your country' : null,
               ),
               const SizedBox(height: 32),
               ElevatedButton(

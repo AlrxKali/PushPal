@@ -100,12 +100,23 @@ class ProfileTabScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 4),
             Center(
-              child: Text(
-                userProfile.locationZipCode ??
-                    'Location not set', // Using zip code for now
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+              child: RichText(
+                textAlign: TextAlign.center,
+                text: TextSpan(
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+                  children: <TextSpan>[
+                    TextSpan(
+                      text: userProfile.locationZipCode ?? 'Zip not set',
+                    ),
+                    if (userProfile.country != null &&
+                        userProfile.country!.isNotEmpty)
+                      TextSpan(
+                        text: ' - ${userProfile.country}',
+                      ), // Display country next to zip
+                  ],
+                ),
               ),
             ),
             if (tags.isNotEmpty)

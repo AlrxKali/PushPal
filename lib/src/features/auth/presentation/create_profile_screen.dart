@@ -27,6 +27,8 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
   String? _selectedGender;
   bool _isLoading = false;
   String? _selectedExperienceLevel;
+  String? _selectedCountry;
+  DateTime? _selectedDate;
 
   // Categorized Workout Types
   final Map<String, List<String>> _categorizedWorkoutOptions = {
@@ -176,6 +178,7 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
               : null,
       gender: _selectedGender,
       experienceLevel: _selectedExperienceLevel,
+      country: _selectedCountry,
     );
 
     try {
@@ -372,6 +375,34 @@ class _CreateProfileScreenState extends ConsumerState<CreateProfileScreen> {
                         value == null
                             ? 'Please select your experience level'
                             : null,
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(
+                  labelText: 'Country *',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.public),
+                ),
+                value: _selectedCountry,
+                hint: const Text('Select your country'),
+                isExpanded: true,
+                items:
+                    ['USA', 'CAD', 'ESP'].map<DropdownMenuItem<String>>((
+                      String value,
+                    ) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    }).toList(),
+                onChanged: (String? newValue) {
+                  setState(() {
+                    _selectedCountry = newValue;
+                  });
+                },
+                validator:
+                    (value) =>
+                        value == null ? 'Please select your country' : null,
               ),
               const SizedBox(height: 32),
               ElevatedButton(
