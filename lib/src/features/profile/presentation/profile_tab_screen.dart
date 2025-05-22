@@ -37,78 +37,82 @@ class ProfileTabScreen extends ConsumerWidget {
     return Card(
       elevation: 2.0,
       margin: const EdgeInsets.symmetric(vertical: 8.0),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+          width: 2,
+        ),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
-            Row(
-              children: [
-                Stack(
-                  alignment: Alignment.bottomRight,
-                  children: [
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundImage:
-                          userProfile.profilePictureUrl != null
-                              ? NetworkImage(userProfile.profilePictureUrl!)
-                              : null, // Placeholder if no image
-                      child:
-                          userProfile.profilePictureUrl == null
-                              ? const Icon(Icons.person, size: 40)
-                              : null,
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        // TODO: Implement profile picture change
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Change picture coming soon!'),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).primaryColor,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.camera_alt,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        userProfile.displayName ?? 'PushPal User',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        userProfile.locationZipCode ??
-                            'Location not set', // Using zip code for now
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
+            Center(
+              child: Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  CircleAvatar(
+                    radius: 56,
+                    backgroundImage:
+                        userProfile.profilePictureUrl != null
+                            ? NetworkImage(userProfile.profilePictureUrl!)
+                            : null,
+                    child:
+                        userProfile.profilePictureUrl == null
+                            ? const Icon(Icons.person, size: 56)
+                            : null,
                   ),
+                  GestureDetector(
+                    onTap: () {
+                      // TODO: Implement profile picture change
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Change picture coming soon!'),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).primaryColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.camera_alt,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Center(
+              child: Text(
+                userProfile.displayName ?? 'PushPal User',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
-              ],
+              ),
+            ),
+            const SizedBox(height: 4),
+            Center(
+              child: Text(
+                userProfile.locationZipCode ??
+                    'Location not set', // Using zip code for now
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+              ),
             ),
             if (tags.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 12.0),
                 child: Wrap(
+                  alignment: WrapAlignment.center,
                   spacing: 8.0,
                   runSpacing: 4.0,
                   children:
@@ -148,6 +152,13 @@ class ProfileTabScreen extends ConsumerWidget {
     return Card(
       elevation: 2.0,
       margin: const EdgeInsets.symmetric(vertical: 8.0),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+          width: 2,
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -155,9 +166,10 @@ class ProfileTabScreen extends ConsumerWidget {
           children: [
             Text(
               'About Me',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.primary,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -181,6 +193,13 @@ class ProfileTabScreen extends ConsumerWidget {
     return Card(
       elevation: 2.0,
       margin: const EdgeInsets.symmetric(vertical: 8.0),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+          width: 2,
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -188,9 +207,10 @@ class ProfileTabScreen extends ConsumerWidget {
           children: [
             Text(
               'Workout Preferences',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.primary,
+              ),
             ),
             const SizedBox(height: 8),
             Wrap(
@@ -220,6 +240,13 @@ class ProfileTabScreen extends ConsumerWidget {
     return Card(
       elevation: 2.0,
       margin: const EdgeInsets.symmetric(vertical: 8.0),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+          width: 2,
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -227,9 +254,10 @@ class ProfileTabScreen extends ConsumerWidget {
           children: [
             Text(
               'My Goals',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.primary,
+              ),
             ),
             const SizedBox(height: 8),
             ListTile(
