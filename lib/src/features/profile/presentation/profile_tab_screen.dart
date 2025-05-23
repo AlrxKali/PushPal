@@ -4,11 +4,16 @@ import 'package:push_pal/src/features/auth/application/user_profile_service.dart
 import 'package:push_pal/src/features/auth/domain/user_profile.dart'; // Ensure this is imported
 import 'package:push_pal/src/theme/app_theme.dart'; // For colors if needed
 import 'package:go_router/go_router.dart';
+import 'package:push_pal/src/features/location/application/location_service.dart';
 
 class ProfileTabScreen extends ConsumerWidget {
   const ProfileTabScreen({super.key});
 
-  Widget _buildUserInfoCard(BuildContext context, UserProfile userProfile) {
+  Widget _buildUserInfoCard(
+    BuildContext context,
+    UserProfile userProfile,
+    WidgetRef ref,
+  ) {
     List<String> tags = [];
     if (userProfile.experienceLevel != null &&
         userProfile.experienceLevel!.isNotEmpty) {
@@ -33,6 +38,84 @@ class ProfileTabScreen extends ConsumerWidget {
     }
     tags = tags.toSet().toList(); // Ensure unique and limit if necessary
     if (tags.length > 3) tags = tags.take(3).toList(); // Max 3 tags
+
+    // Condition to check if we need to fetch and potentially save location
+    final bool shouldFetchLocation =
+        userProfile.locationZipCode != null &&
+        userProfile.locationZipCode!.isNotEmpty &&
+        userProfile.country != null &&
+        userProfile.country!.isNotEmpty &&
+        (userProfile.placeName == null ||
+            userProfile.placeName!.isEmpty ||
+            userProfile.admin1Name == null ||
+            userProfile.admin1Name!.isEmpty);
+
+    if (shouldFetchLocation) {
+      print(
+        '[ProfileTabScreen] Setting up listener for locationDetailsProvider for zip: ${userProfile.locationZipCode}, country: ${userProfile.country}',
+      );
+      ref.listen<AsyncValue<LocationDetails>>(
+        locationDetailsProvider({
+          'zipCode': userProfile.locationZipCode!,
+          'countryCode': userProfile.country!,
+        }),
+        (previous, next) {
+          next.whenData((locationDetails) {
+            print(
+              '[ProfileTabScreen Listener] LocationProvider DATA received: ${locationDetails.placeName} for zip ${userProfile.locationZipCode}',
+            );
+
+            // Read the latest profile state directly *before* deciding to update
+            // This helps avoid race conditions if the profile was updated by another source
+            final latestProfileSnapshot =
+                ref.read(currentUserProfileStreamProvider).value;
+
+            if (latestProfileSnapshot != null) {
+              // Check if this specific fetched data needs to be saved to the latest profile
+              if (latestProfileSnapshot.placeName !=
+                      locationDetails.placeName ||
+                  latestProfileSnapshot.admin1Name !=
+                      locationDetails.admin1Name) {
+                print(
+                  '[ProfileTabScreen Listener] Updating UserProfile in Firestore with place: ${locationDetails.placeName}, admin1: ${locationDetails.admin1Name} for UID: ${latestProfileSnapshot.uid}',
+                );
+                final profileToUpdateWithLocation = latestProfileSnapshot
+                    .copyWith(
+                      placeName: locationDetails.placeName,
+                      admin1Name: locationDetails.admin1Name,
+                    );
+                ref
+                    .read(userProfileServiceProvider)
+                    .setUserProfile(profileToUpdateWithLocation)
+                    .then((_) {
+                      print(
+                        '[ProfileTabScreen Listener] Firestore update successful for zip ${userProfile.locationZipCode}.',
+                      );
+                    })
+                    .catchError((e, st) {
+                      print(
+                        '[ProfileTabScreen Listener] Firestore update FAILED for zip ${userProfile.locationZipCode}: $e\\n$st',
+                      );
+                    });
+              } else {
+                print(
+                  '[ProfileTabScreen Listener] Latest profile (UID: ${latestProfileSnapshot.uid}) already has these location details. No update needed for zip ${userProfile.locationZipCode}.',
+                );
+              }
+            } else {
+              print(
+                '[ProfileTabScreen Listener] Cannot update, latestProfileSnapshot is null when trying to save for zip ${userProfile.locationZipCode}.',
+              );
+            }
+          });
+        },
+        onError: (error, stackTrace) {
+          print(
+            '[ProfileTabScreen Listener] LocationProvider ERROR for zip ${userProfile.locationZipCode}, country ${userProfile.country}: $error\\n$stackTrace',
+          );
+        },
+      );
+    }
 
     return Card(
       elevation: 2.0,
@@ -100,24 +183,201 @@ class ProfileTabScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 4),
             Center(
-              child: RichText(
-                textAlign: TextAlign.center,
-                text: TextSpan(
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
-                  children: <TextSpan>[
-                    TextSpan(
-                      text: userProfile.locationZipCode ?? 'Zip not set',
-                    ),
-                    if (userProfile.country != null &&
-                        userProfile.country!.isNotEmpty)
-                      TextSpan(
-                        text: ' - ${userProfile.country}',
-                      ), // Display country next to zip
-                  ],
-                ),
-              ),
+              child:
+                  (userProfile.placeName != null &&
+                          userProfile.placeName!.isNotEmpty &&
+                          userProfile.admin1Name != null &&
+                          userProfile.admin1Name!.isNotEmpty)
+                      // If placeName and admin1Name are in UserProfile, display them
+                      ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.location_on,
+                            size: 16,
+                            color: primaryOrange,
+                          ),
+                          const SizedBox(width: 4),
+                          RichText(
+                            textAlign: TextAlign.center,
+                            text: TextSpan(
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(color: Colors.grey[600]),
+                              children: <TextSpan>[
+                                TextSpan(text: userProfile.placeName),
+                                TextSpan(text: ', ${userProfile.admin1Name}'),
+                                if (userProfile.country != null &&
+                                    userProfile.country!.isNotEmpty)
+                                  TextSpan(text: ' - ${userProfile.country}'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      )
+                      // Else, if we should be fetching, use the provider to display loading/error/data for UI
+                      : shouldFetchLocation
+                      ? ref
+                          .watch(
+                            locationDetailsProvider({
+                              'zipCode': userProfile.locationZipCode!,
+                              'countryCode': userProfile.country!,
+                            }),
+                          )
+                          .when(
+                            data: (locationDetails) {
+                              // This data callback is now ONLY for displaying the fetched details
+                              print(
+                                '[ProfileTabScreen Watch UI] DATA received for display: ${locationDetails.placeName}',
+                              );
+                              return Row(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.location_on,
+                                    size: 16,
+                                    color: primaryOrange,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  RichText(
+                                    textAlign: TextAlign.center,
+                                    text: TextSpan(
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(color: Colors.grey[600]),
+                                      children: <TextSpan>[
+                                        TextSpan(
+                                          text: locationDetails.placeName,
+                                        ),
+                                        TextSpan(
+                                          text:
+                                              ', ${locationDetails.admin1Name}',
+                                        ),
+                                        TextSpan(
+                                          text:
+                                              ' - ${locationDetails.countryCode}',
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                            loading: () {
+                              print(
+                                '[ProfileTabScreen Watch UI] LOADING for display for zip: ${userProfile.locationZipCode}',
+                              );
+                              return Row(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.location_on,
+                                    size: 16,
+                                    color: primaryOrange,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  RichText(
+                                    textAlign: TextAlign.center,
+                                    text: TextSpan(
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(color: Colors.red[400]),
+                                      children: <TextSpan>[
+                                        TextSpan(
+                                          text:
+                                              userProfile.locationZipCode ??
+                                              'Zip not set',
+                                        ),
+                                        if (userProfile.country != null &&
+                                            userProfile.country!.isNotEmpty)
+                                          TextSpan(
+                                            text: ' - ${userProfile.country}',
+                                          ),
+                                        const TextSpan(
+                                          text: ' (Location lookup failed)',
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                            error: (error, stackTrace) {
+                              print(
+                                '[ProfileTabScreen Watch UI] ERROR for display for zip: ${userProfile.locationZipCode} - $error',
+                              );
+                              return Row(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.location_on,
+                                    size: 16,
+                                    color: primaryOrange,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  RichText(
+                                    textAlign: TextAlign.center,
+                                    text: TextSpan(
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(color: Colors.red[400]),
+                                      children: <TextSpan>[
+                                        TextSpan(
+                                          text:
+                                              userProfile.locationZipCode ??
+                                              'Zip not set',
+                                        ),
+                                        if (userProfile.country != null &&
+                                            userProfile.country!.isNotEmpty)
+                                          TextSpan(
+                                            text: ' - ${userProfile.country}',
+                                          ),
+                                        const TextSpan(
+                                          text: ' (Location lookup failed)',
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          )
+                      // Fallback if not fetching and no details yet (e.g., no zip/country)
+                      : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.location_on,
+                            size: 16,
+                            color: primaryOrange,
+                          ),
+                          const SizedBox(width: 4),
+                          RichText(
+                            textAlign: TextAlign.center,
+                            text: TextSpan(
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(color: Colors.grey[600]),
+                              children: <TextSpan>[
+                                TextSpan(
+                                  text:
+                                      userProfile.locationZipCode ??
+                                      'Zip not set',
+                                ),
+                                if (userProfile.country != null &&
+                                    userProfile.country!.isNotEmpty)
+                                  TextSpan(text: ' - ${userProfile.country}'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
             ),
             if (tags.isNotEmpty)
               Padding(
@@ -140,13 +400,10 @@ class ProfileTabScreen extends ConsumerWidget {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () {
-                context.go('/edit-profile'); // Navigate to edit profile screen
+                context.go('/edit-profile');
               },
               style: ElevatedButton.styleFrom(
-                minimumSize: const Size(
-                  double.infinity,
-                  36,
-                ), // Make button wider
+                minimumSize: const Size(double.infinity, 36),
               ),
               child: const Text('Edit Profile'),
             ),
@@ -338,7 +595,7 @@ class ProfileTabScreen extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    _buildUserInfoCard(context, userProfile),
+                    _buildUserInfoCard(context, userProfile, ref),
                     _buildAboutMeCard(context, userProfile),
                     _buildWorkoutPreferencesCard(context, userProfile),
                     _buildGoalsCard(context, userProfile),

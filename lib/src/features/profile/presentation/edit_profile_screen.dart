@@ -192,15 +192,36 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     final currentProfile =
         ref.read(currentUserProfileStreamProvider).valueOrNull;
     if (currentProfile == null) {
-      /* error handling */
-      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Error: Could not load current profile. Please try again.',
+            ),
+          ),
+        );
+        setState(() => _isLoading = false);
+      }
       return;
+    }
+
+    // Determine if zip code or country has changed to reset placeName and admin1Name
+    String? newPlaceName = currentProfile.placeName;
+    String? newAdmin1Name = currentProfile.admin1Name;
+
+    final newZipCode = _zipCodeController.text.trim();
+    final newCountry = _selectedCountry;
+
+    if (newZipCode != currentProfile.locationZipCode ||
+        newCountry != currentProfile.country) {
+      newPlaceName = null;
+      newAdmin1Name = null;
     }
 
     final updatedProfile = currentProfile.copyWith(
       displayName: _displayNameController.text.trim(),
       aboutMe: _aboutMeController.text.trim(),
-      locationZipCode: _zipCodeController.text.trim(),
+      locationZipCode: newZipCode, // Use the new zip code
       dateOfBirth:
           _selectedDateOfBirth != null
               ? Timestamp.fromDate(_selectedDateOfBirth!)
@@ -212,8 +233,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       durationPreference: _selectedDurationPreference,
       intensityPreference: _selectedIntensityPreference,
       preferredBuddyGender: _selectedBuddyGender,
-      country: _selectedCountry,
-      // profileSetupComplete: true, // Should remain true if already true
+      country: newCountry, // Use the new country
+      placeName:
+          newPlaceName, // Will be null if zip/country changed, otherwise original
+      admin1Name:
+          newAdmin1Name, // Will be null if zip/country changed, otherwise original
+      // profileSetupComplete is not changed here, it's managed elsewhere (e.g. after availability setup)
     );
 
     try {

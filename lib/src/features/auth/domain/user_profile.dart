@@ -21,6 +21,8 @@ class UserProfile {
   final String? aboutMe; // Added
   final String? experienceLevel; // e.g., "Beginner", "Intermediate", "Advanced"
   final String? country; // Added country field
+  final String? placeName; // Added for city/town
+  final String? admin1Name; // Added for state/province
 
   UserProfile({
     required this.uid,
@@ -42,6 +44,8 @@ class UserProfile {
     this.aboutMe,
     this.experienceLevel,
     this.country, // Added country field
+    this.placeName,
+    this.admin1Name,
   });
 
   UserProfile copyWith({
@@ -64,6 +68,8 @@ class UserProfile {
     String? aboutMe, // Added
     String? experienceLevel,
     String? country, // Added country field
+    String? placeName,
+    String? admin1Name,
   }) {
     return UserProfile(
       uid: uid ?? this.uid,
@@ -86,6 +92,8 @@ class UserProfile {
       aboutMe: aboutMe ?? this.aboutMe, // Added
       experienceLevel: experienceLevel ?? this.experienceLevel,
       country: country ?? this.country, // Added country field
+      placeName: placeName ?? this.placeName,
+      admin1Name: admin1Name ?? this.admin1Name,
     );
   }
 
@@ -116,6 +124,8 @@ class UserProfile {
       if (aboutMe != null) 'aboutMe': aboutMe, // Added
       if (experienceLevel != null) 'experienceLevel': experienceLevel,
       if (country != null) 'country': country, // Added country field
+      if (placeName != null) 'placeName': placeName,
+      if (admin1Name != null) 'admin1Name': admin1Name,
     };
   }
 
@@ -151,6 +161,8 @@ class UserProfile {
       aboutMe: map['aboutMe'] as String?, // Added
       experienceLevel: map['experienceLevel'] as String?,
       country: map['country'] as String?, // Added country field
+      placeName: map['placeName'] as String?,
+      admin1Name: map['admin1Name'] as String?,
     );
   }
 }

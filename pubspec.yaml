@@ -36,9 +36,10 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   # Firebase
-  firebase_core: ^3.4.0 
-  firebase_auth: ^5.2.0
-  cloud_firestore: ^5.1.0
+  firebase_core: ^3.13.1
+  firebase_auth: ^5.5.4
+  cloud_firestore: ^5.6.8
+  cloud_functions: ^5.5.1
 
   # Routing
   go_router: ^15.0.1
@@ -48,7 +49,7 @@ dependencies:
   riverpod_annotation: ^2.3.5
 
   # Utility
-  intl: ^0.19.0 # Added for date formatting
+  intl: ^0.20.2 # Added for date formatting
 
 dev_dependencies:
   flutter_test:
@@ -62,7 +63,7 @@ dev_dependencies:
   flutter_lints: ^5.0.0
 
   # Linting
-  very_good_analysis: ^6.0.0
+  very_good_analysis: ^7.0.0
 
   # Code Generation
   build_runner: ^2.4.11
