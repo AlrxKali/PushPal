@@ -18,19 +18,7 @@ class HomeScreen extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('PushPal Home'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await authService.signOut();
-              // GoRouter will handle redirecting to login via authStateChanges
-            },
-            tooltip: 'Logout',
-          ),
-        ],
-      ),
+      backgroundColor: colorScheme.surfaceVariant,
       body: userProfileAsyncValue.when(
         data: (userProfile) {
           if (userProfile == null) {
@@ -42,7 +30,7 @@ class HomeScreen extends ConsumerWidget {
           }
           return CustomScrollView(
             slivers: [
-              _buildAppBar(context, ref, textTheme, colorScheme),
+              _buildAppBar(context, userProfile, textTheme, colorScheme),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -101,13 +89,11 @@ class HomeScreen extends ConsumerWidget {
 
   Widget _buildAppBar(
     BuildContext context,
-    WidgetRef ref,
+    UserProfile userProfile,
     TextTheme textTheme,
     ColorScheme colorScheme,
   ) {
-    // In a real app, get avatar from a provider:
-    // final String? avatarUrl = ref.watch(currentUserAvatarProvider);
-    const String? avatarUrl = null; // Placeholder
+    final String? avatarUrl = userProfile.profilePictureUrl;
 
     return SliverPadding(
       padding: const EdgeInsets.only(
@@ -138,16 +124,25 @@ class HomeScreen extends ConsumerWidget {
               ),
               GestureDetector(
                 onTap: () {
-                  // TODO: Navigate to profile or settings
-                  print('Profile avatar tapped');
+                  // Navigate to the profile tab
+                  // Assuming GoRouter is set up to handle this route for the profile tab
+                  // This might be context.go('/profile-tab') or similar based on your routes
+                  // For now, using the known ProfileTabScreen destination if MainAppShell handles it.
+                  // You might need to adjust this based on your actual GoRouter setup.
+                  // If MainAppShell has an onItemTapped for index 2 (Profile), that's another way.
+                  // For simplicity, let's assume context.go to a named route or path for profile:
+                  context.go('/profile-tab');
+                  print('Profile avatar tapped, navigating to profile tab.');
                 },
                 child: CircleAvatar(
                   radius: 20,
-                  backgroundColor: Colors.grey[300], // Placeholder color
+                  backgroundColor: Colors.grey[300],
                   backgroundImage:
-                      avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                      (avatarUrl != null && avatarUrl.isNotEmpty)
+                          ? NetworkImage(avatarUrl)
+                          : null,
                   child:
-                      avatarUrl == null
+                      (avatarUrl == null || avatarUrl.isEmpty)
                           ? Icon(
                             Icons.person,
                             color: Colors.grey[600],
@@ -193,6 +188,7 @@ class HomeScreen extends ConsumerWidget {
                     'Ready to push your limits today? Match up and get moving!',
                     style: textTheme.bodyMedium?.copyWith(
                       color: charcoal.withOpacity(0.8),
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
@@ -365,6 +361,7 @@ class HomeScreen extends ConsumerWidget {
               textAlign: TextAlign.center,
               style: textTheme.bodyMedium?.copyWith(
                 color: charcoal.withOpacity(0.8),
+                fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 16),

@@ -1,12 +1,16 @@
+import 'dart:io'; // For File
+import 'dart:typed_data'; // Added for Uint8List
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart'; // For ImagePicker
 import 'package:push_pal/src/features/auth/application/user_profile_service.dart';
 import 'package:push_pal/src/features/auth/domain/user_profile.dart';
 import 'package:push_pal/src/features/auth/application/auth_service.dart'; // For current user
+import 'package:image_cropper/image_cropper.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
@@ -30,6 +34,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   String? _selectedBuddyGender;
   String? _selectedCountry;
   bool _isLoading = false;
+
+  XFile? _selectedImageFile;
+  Uint8List? _selectedImageBytes; // Added for image preview on web
+  final ImagePicker _picker = ImagePicker();
 
   // Options (can be shared or redefined here, consider a constants file later)
   final Map<String, List<String>> _categorizedWorkoutOptions = {
@@ -140,6 +148,95 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _selectedCountry = userProfile?.country;
   }
 
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: source,
+        imageQuality: 80,
+      );
+
+      if (pickedFile != null) {
+        final CroppedFile? croppedFile = await ImageCropper().cropImage(
+          sourcePath: pickedFile.path,
+          uiSettings: [
+            AndroidUiSettings(
+              toolbarTitle: 'Crop Image',
+              toolbarColor: Theme.of(context).primaryColor,
+              toolbarWidgetColor: Colors.white,
+              initAspectRatio: CropAspectRatioPreset.square,
+              lockAspectRatio: false,
+            ),
+            IOSUiSettings(
+              title: 'Crop Image',
+              doneButtonTitle: 'Done',
+              cancelButtonTitle: 'Cancel',
+              minimumAspectRatio:
+                  1.0, // Ensures user can crop to at least a square
+            ),
+            WebUiSettings(
+              context: context, // Essential for web dialogs/modals
+              // Keeping WebUiSettings minimal as specific parameters for v9 can vary
+              // and might require more in-depth CSS or custom JS interop for advanced styling.
+              // The global `aspectRatio` parameter below should guide the default crop area.
+            ),
+          ],
+          aspectRatio: const CropAspectRatio(
+            ratioX: 1.0,
+            ratioY: 1.0,
+          ), // Default to square
+          compressQuality: 75,
+          maxWidth: 600,
+          maxHeight: 600,
+        );
+
+        if (croppedFile != null) {
+          final XFile finalImageFile = XFile(croppedFile.path);
+          final bytes = await finalImageFile.readAsBytes();
+          setState(() {
+            _selectedImageFile = finalImageFile;
+            _selectedImageBytes = bytes;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error processing image: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  void _showImageSourceActionSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext bc) {
+        return SafeArea(
+          child: Wrap(
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Photo Library'),
+                onTap: () {
+                  _pickImage(ImageSource.gallery);
+                  Navigator.of(context).pop();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_camera),
+                title: const Text('Camera'),
+                onTap: () {
+                  _pickImage(ImageSource.camera);
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     _displayNameController.dispose();
@@ -163,7 +260,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   }
 
   Future<void> _saveProfile() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    print('[_saveProfile] Attempting to save profile...');
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      print('[_saveProfile] Form validation failed.');
+      return;
+    }
     // Add validation for any new required fields here (e.g., DOB, fitness goal if they become non-optional in edit)
     if (_selectedFitnessGoal == null) {
       /* show snackbar */
@@ -187,11 +288,15 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     }
     // Buddy gender is optional, no validation needed unless specified
 
-    setState(() => _isLoading = true);
+    setState(() {
+      print('[_saveProfile] Setting _isLoading = true');
+      _isLoading = true;
+    });
 
     final currentProfile =
         ref.read(currentUserProfileStreamProvider).valueOrNull;
     if (currentProfile == null) {
+      print('[_saveProfile] Error: currentProfile is null.');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -200,20 +305,71 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             ),
           ),
         );
-        setState(() => _isLoading = false);
+        setState(() {
+          print(
+            '[_saveProfile] currentProfile null path: Setting _isLoading = false',
+          );
+          _isLoading = false;
+        });
       }
       return;
+    }
+    print('[_saveProfile] currentProfile loaded: ${currentProfile.uid}');
+
+    String? newProfilePictureUrl = currentProfile.profilePictureUrl;
+    if (_selectedImageFile != null) {
+      print('[_saveProfile] Attempting to upload profile picture...');
+      try {
+        final currentUserUid =
+            ref.read(authServiceProvider).getCurrentUser()?.uid;
+        if (currentUserUid == null) {
+          print(
+            '[_saveProfile] Error: User not authenticated for image upload.',
+          );
+          throw Exception('User not authenticated, cannot upload image.');
+        }
+        print('[_saveProfile] Uploading image for UID: $currentUserUid');
+        newProfilePictureUrl = await ref
+            .read(userProfileServiceProvider)
+            .uploadProfilePicture(currentUserUid, _selectedImageFile!);
+        print(
+          '[_saveProfile] Image uploaded successfully: $newProfilePictureUrl',
+        );
+      } catch (e) {
+        print(
+          '[_saveProfile] Error uploading profile picture: ${e.toString()}',
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Failed to upload profile picture: ${e.toString()}',
+              ),
+            ),
+          );
+          setState(() {
+            print(
+              '[_saveProfile] Image upload error path: Setting _isLoading = false',
+            );
+            _isLoading = false;
+          });
+        }
+        return; // Stop if image upload fails
+      }
+    } else {
+      print('[_saveProfile] No new image selected for upload.');
     }
 
     // Determine if zip code or country has changed to reset placeName and admin1Name
     String? newPlaceName = currentProfile.placeName;
     String? newAdmin1Name = currentProfile.admin1Name;
-
     final newZipCode = _zipCodeController.text.trim();
     final newCountry = _selectedCountry;
-
     if (newZipCode != currentProfile.locationZipCode ||
         newCountry != currentProfile.country) {
+      print(
+        '[_saveProfile] Zip or Country changed. Clearing placeName/admin1Name.',
+      );
       newPlaceName = null;
       newAdmin1Name = null;
     }
@@ -221,7 +377,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     final updatedProfile = currentProfile.copyWith(
       displayName: _displayNameController.text.trim(),
       aboutMe: _aboutMeController.text.trim(),
-      locationZipCode: newZipCode, // Use the new zip code
+      profilePictureUrl: newProfilePictureUrl,
+      locationZipCode: newZipCode,
       dateOfBirth:
           _selectedDateOfBirth != null
               ? Timestamp.fromDate(_selectedDateOfBirth!)
@@ -233,26 +390,59 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       durationPreference: _selectedDurationPreference,
       intensityPreference: _selectedIntensityPreference,
       preferredBuddyGender: _selectedBuddyGender,
-      country: newCountry, // Use the new country
-      placeName:
-          newPlaceName, // Will be null if zip/country changed, otherwise original
-      admin1Name:
-          newAdmin1Name, // Will be null if zip/country changed, otherwise original
+      country: newCountry,
+      placeName: newPlaceName,
+      admin1Name: newAdmin1Name,
       // profileSetupComplete is not changed here, it's managed elsewhere (e.g. after availability setup)
+    );
+    print(
+      '[_saveProfile] Profile object to save: ${updatedProfile.toMap()} (timestamps will be handled by service)',
     );
 
     try {
+      print('[_saveProfile] Calling setUserProfile...');
       await ref.read(userProfileServiceProvider).setUserProfile(updatedProfile);
+      print('[_saveProfile] setUserProfile successful.');
       if (mounted) {
+        setState(() {
+          print(
+            '[_saveProfile] Save success path: Setting _isLoading = false BEFORE pop.',
+          );
+          _isLoading = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profile updated successfully!')),
         );
+        print('[_saveProfile] Popping screen.');
         context.pop();
       }
     } catch (e) {
-      // error handling
+      print(
+        '[_saveProfile] Error saving profile to Firestore: ${e.toString()}',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save profile: ${e.toString()}')),
+        );
+        setState(() {
+          print(
+            '[_saveProfile] Firestore save error path: Setting _isLoading = false',
+          );
+          _isLoading = false;
+        });
+      }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      print(
+        '[_saveProfile] Entering finally block. _isLoading is $_isLoading (should be false if successful save path was taken before pop)',
+      );
+      // This finally is mainly a safeguard for unexpected exits or if an error happened before a dedicated setState for isLoading=false
+      if (mounted && _isLoading) {
+        print(
+          '[_saveProfile] Finally block: Setting _isLoading = false as a safeguard because it was still true.',
+        );
+        setState(() => _isLoading = false);
+      }
+      print('[_saveProfile] Exiting _saveProfile method.');
     }
   }
 
@@ -344,8 +534,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final userProfile = ref.watch(currentUserProfileStreamProvider).valueOrNull;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Your Profile')),
+      appBar: AppBar(title: const Text('Edit Profile')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Form(
@@ -353,6 +545,56 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
+              Center(
+                child: Stack(
+                  alignment: Alignment.bottomRight,
+                  children: [
+                    CircleAvatar(
+                      radius: 60,
+                      backgroundColor: Colors.grey[300],
+                      backgroundImage:
+                          _selectedImageBytes != null
+                              ? MemoryImage(
+                                _selectedImageBytes!,
+                              ) // Use MemoryImage for new local preview
+                              : (userProfile?.profilePictureUrl != null &&
+                                  userProfile!.profilePictureUrl!.isNotEmpty)
+                              ? NetworkImage(userProfile.profilePictureUrl!)
+                              : null as ImageProvider?,
+                      child:
+                          (_selectedImageBytes == null &&
+                                  (userProfile?.profilePictureUrl == null ||
+                                      userProfile!.profilePictureUrl!.isEmpty))
+                              ? Icon(
+                                Icons.person,
+                                size: 60,
+                                color: Colors.grey[600],
+                              )
+                              : null,
+                    ),
+                    Positioned(
+                      right: 4,
+                      bottom: 4,
+                      child: GestureDetector(
+                        onTap: () => _showImageSourceActionSheet(context),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).primaryColor,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
               TextFormField(
                 controller: _displayNameController,
                 decoration: const InputDecoration(labelText: 'Display Name'),

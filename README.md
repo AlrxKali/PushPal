@@ -67,3 +67,19 @@ The Gym Accountability Buddy App aims to connect users with compatible fitness p
 # Key Information/Status:
 * A summary of their primary fitness goal or preferred workout types.
 * If they have active "Pals" or connections, a quick way to see them (though this is future functionality, we can plan the space).
+
+
+# VERY IMPORTANT FOR PRODUCTION
+Create cors.json file:
+Create a file named cors.json on your computer with this content:
+```
+    [
+      {
+        "origin": ["*"],
+        "method": ["GET"],
+        "maxAgeSeconds": 3600
+      }
+    ]
+```
+Apply to user_profile...
+(For production, replace "*" with your app's actual domains: ["https://YOUR_PROJECT_ID.web.app", "https://YOUR_PROJECT_ID.firebaseapp.com"] and any custom domains).

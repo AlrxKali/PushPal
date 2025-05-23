@@ -1,19 +1,249 @@
+import 'dart:typed_data'; // For Uint8List if we were to do local preview, not strictly needed if just uploading
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // For Timestamp
+import 'package:push_pal/src/features/auth/application/auth_service.dart'; // For current user UID
 import 'package:push_pal/src/features/auth/application/user_profile_service.dart';
-import 'package:push_pal/src/features/auth/domain/user_profile.dart'; // Ensure this is imported
-import 'package:push_pal/src/theme/app_theme.dart'; // For colors if needed
+import 'package:push_pal/src/features/auth/domain/user_profile.dart';
+import 'package:push_pal/src/theme/app_theme.dart';
 import 'package:go_router/go_router.dart';
 import 'package:push_pal/src/features/location/application/location_service.dart';
 
-class ProfileTabScreen extends ConsumerWidget {
+// Convert to ConsumerStatefulWidget
+class ProfileTabScreen extends ConsumerStatefulWidget {
   const ProfileTabScreen({super.key});
 
-  Widget _buildUserInfoCard(
+  @override
+  ConsumerState<ProfileTabScreen> createState() => _ProfileTabScreenState();
+}
+
+class _ProfileTabScreenState extends ConsumerState<ProfileTabScreen> {
+  final ImagePicker _picker = ImagePicker();
+  bool _isUploadingImage = false;
+
+  Future<void> _pickAndUploadImage(UserProfile currentUserProfile) async {
+    if (_isUploadingImage) return; // Prevent multiple uploads
+
+    setState(() => _isUploadingImage = true);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Opening image picker...')));
+
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source:
+            ImageSource
+                .gallery, // Default to gallery, can be chosen via action sheet
+        imageQuality: 80,
+      );
+
+      if (pickedFile == null) {
+        setState(() => _isUploadingImage = false);
+        return;
+      }
+
+      final CroppedFile? croppedFile = await ImageCropper().cropImage(
+        sourcePath: pickedFile.path,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop Image',
+            toolbarColor: Theme.of(context).primaryColor,
+            toolbarWidgetColor: Colors.white,
+            initAspectRatio: CropAspectRatioPreset.square,
+            lockAspectRatio: true,
+          ), // Lock to square for profile pics
+          IOSUiSettings(
+            title: 'Crop Image',
+            doneButtonTitle: 'Done',
+            cancelButtonTitle: 'Cancel',
+            minimumAspectRatio: 1.0,
+            aspectRatioLockEnabled: true,
+            rectX: 20,
+            rectY:
+                (MediaQuery.of(context).size.height -
+                    MediaQuery.of(context).size.width) /
+                2, // Center square
+            rectWidth: MediaQuery.of(context).size.width - 40,
+            rectHeight: MediaQuery.of(context).size.width - 40,
+          ),
+          WebUiSettings(context: context),
+        ],
+        aspectRatio: const CropAspectRatio(ratioX: 1.0, ratioY: 1.0),
+        compressQuality: 75,
+        maxWidth: 500, // Profile pictures don't need to be huge
+        maxHeight: 500,
+      );
+
+      if (croppedFile == null) {
+        setState(() => _isUploadingImage = false);
+        return;
+      }
+
+      final XFile finalImageFile = XFile(croppedFile.path);
+      final String uid = currentUserProfile.uid; // Use existing profile UID
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Uploading image...')));
+
+      final String downloadUrl = await ref
+          .read(userProfileServiceProvider)
+          .uploadProfilePicture(uid, finalImageFile);
+
+      final updatedProfile = currentUserProfile.copyWith(
+        profilePictureUrl: downloadUrl,
+        updatedAt: Timestamp.now(), // Update timestamp
+      );
+
+      await ref.read(userProfileServiceProvider).setUserProfile(updatedProfile);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile picture updated!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update picture: ${e.toString()}')),
+        );
+      }
+      print('Error updating profile picture from ProfileTabScreen: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingImage = false);
+      }
+    }
+  }
+
+  void _showImageSourceActionSheet(
     BuildContext context,
-    UserProfile userProfile,
-    WidgetRef ref,
+    UserProfile currentUserProfile,
   ) {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext bc) {
+        return SafeArea(
+          child: Wrap(
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Photo Library'),
+                onTap: () {
+                  Navigator.of(context).pop(); // Close bottom sheet
+                  _pickAndUploadImage(
+                    currentUserProfile,
+                  ); // Pass current profile
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_camera),
+                title: const Text('Camera'),
+                onTap: () async {
+                  Navigator.of(context).pop(); // Close bottom sheet
+                  // For camera, directly call pickImage with camera source then upload
+                  if (_isUploadingImage) return;
+                  setState(() => _isUploadingImage = true);
+                  try {
+                    final XFile? cameraPickedFile = await _picker.pickImage(
+                      source: ImageSource.camera,
+                      imageQuality: 80,
+                    );
+                    if (cameraPickedFile == null) {
+                      setState(() => _isUploadingImage = false);
+                      return;
+                    }
+                    // Crop after camera capture
+                    final CroppedFile? croppedFile = await ImageCropper()
+                        .cropImage(
+                          sourcePath: cameraPickedFile.path,
+                          uiSettings: [
+                            // Re-use UI settings
+                            AndroidUiSettings(
+                              toolbarTitle: 'Crop Image',
+                              toolbarColor: Theme.of(context).primaryColor,
+                              toolbarWidgetColor: Colors.white,
+                              initAspectRatio: CropAspectRatioPreset.square,
+                              lockAspectRatio: true,
+                            ),
+                            IOSUiSettings(
+                              title: 'Crop Image',
+                              doneButtonTitle: 'Done',
+                              cancelButtonTitle: 'Cancel',
+                              minimumAspectRatio: 1.0,
+                              aspectRatioLockEnabled: true,
+                              rectX: 20,
+                              rectY:
+                                  (MediaQuery.of(context).size.height -
+                                      MediaQuery.of(context).size.width) /
+                                  2,
+                              rectWidth: MediaQuery.of(context).size.width - 40,
+                              rectHeight:
+                                  MediaQuery.of(context).size.width - 40,
+                            ),
+                            WebUiSettings(context: context),
+                          ],
+                          aspectRatio: const CropAspectRatio(
+                            ratioX: 1.0,
+                            ratioY: 1.0,
+                          ),
+                          compressQuality: 75,
+                          maxWidth: 500,
+                          maxHeight: 500,
+                        );
+
+                    if (croppedFile == null) {
+                      setState(() => _isUploadingImage = false);
+                      return;
+                    }
+                    final XFile finalImageFile = XFile(croppedFile.path);
+                    final String uid = currentUserProfile.uid;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Uploading image...')),
+                    );
+                    final String downloadUrl = await ref
+                        .read(userProfileServiceProvider)
+                        .uploadProfilePicture(uid, finalImageFile);
+                    final updatedProfile = currentUserProfile.copyWith(
+                      profilePictureUrl: downloadUrl,
+                      updatedAt: Timestamp.now(),
+                    );
+                    await ref
+                        .read(userProfileServiceProvider)
+                        .setUserProfile(updatedProfile);
+                    if (mounted)
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Profile picture updated!'),
+                        ),
+                      );
+                  } catch (e) {
+                    if (mounted)
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Failed to update picture: ${e.toString()}',
+                          ),
+                        ),
+                      );
+                    print(
+                      'Error updating profile picture (camera) from ProfileTabScreen: $e',
+                    );
+                  } finally {
+                    if (mounted) setState(() => _isUploadingImage = false);
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildUserInfoCard(BuildContext context, UserProfile userProfile) {
     List<String> tags = [];
     if (userProfile.experienceLevel != null &&
         userProfile.experienceLevel!.isNotEmpty) {
@@ -138,34 +368,50 @@ class ProfileTabScreen extends ConsumerWidget {
                   CircleAvatar(
                     radius: 56,
                     backgroundImage:
-                        userProfile.profilePictureUrl != null
+                        userProfile.profilePictureUrl != null &&
+                                userProfile.profilePictureUrl!.isNotEmpty
                             ? NetworkImage(userProfile.profilePictureUrl!)
                             : null,
                     child:
-                        userProfile.profilePictureUrl == null
+                        userProfile.profilePictureUrl == null ||
+                                userProfile.profilePictureUrl!.isEmpty
                             ? const Icon(Icons.person, size: 56)
                             : null,
                   ),
                   GestureDetector(
-                    onTap: () {
-                      // TODO: Implement profile picture change
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Change picture coming soon!'),
-                        ),
-                      );
-                    },
+                    onTap:
+                        _isUploadingImage
+                            ? null // Disable tap while uploading
+                            : () => _showImageSourceActionSheet(
+                              context,
+                              userProfile,
+                            ),
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor,
+                        color:
+                            _isUploadingImage
+                                ? Colors.grey
+                                : Theme.of(context).primaryColor,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
-                        Icons.camera_alt,
-                        color: Colors.white,
-                        size: 20,
-                      ),
+                      child:
+                          _isUploadingImage
+                              ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                              : const Icon(
+                                Icons.camera_alt,
+                                color: Colors.white,
+                                size: 20,
+                              ),
                     ),
                   ),
                 ],
@@ -547,7 +793,7 @@ class ProfileTabScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final userProfileAsyncValue = ref.watch(currentUserProfileStreamProvider);
 
     return Scaffold(
@@ -595,7 +841,7 @@ class ProfileTabScreen extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    _buildUserInfoCard(context, userProfile, ref),
+                    _buildUserInfoCard(context, userProfile),
                     _buildAboutMeCard(context, userProfile),
                     _buildWorkoutPreferencesCard(context, userProfile),
                     _buildGoalsCard(context, userProfile),
